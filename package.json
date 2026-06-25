@@ -1,0 +1,22 @@
+{
+  "name": "subchain",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "contracts",
+    "apps/web",
+    "apps/indexer"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace apps/web",
+    "build:web": "npm run build --workspace apps/web",
+    "lint:web": "npm run lint --workspace apps/web",
+    "dev:indexer": "npm run dev --workspace apps/indexer",
+    "build:indexer": "npm run build --workspace apps/indexer",
+    "contracts:test": "cd contracts && forge test -vvv",
+    "contracts:deploy:local": "cd contracts && forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

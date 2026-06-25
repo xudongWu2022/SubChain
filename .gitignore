@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+dist/
+cache/
+artifacts/
+broadcast/
+lib/
+.env
+.env.local
+*.log
+
