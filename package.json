@@ -8,6 +8,13 @@
     "apps/indexer"
   ],
   "scripts": {
+    "db:local": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1",
+    "db:local:reset": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1 -Reset",
+    "db:local:stop": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1 -Stop",
+    "dev:stack": "powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1",
+    "dev:stack:no-web": "powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1 -NoWeb",
+    "dev:local": "powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1",
+    "dev:local:no-web": "powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -NoWeb",
     "dev:web": "npm run dev --workspace apps/web",
     "build:web": "npm run build --workspace apps/web",
     "lint:web": "npm run lint --workspace apps/web",

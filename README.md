@@ -35,7 +35,111 @@ forge install dapphub/ds-test --no-git --shallow
 cd ..
 ```
 
-## Start From Zero
+## One-Command Full Stack Start
+
+This is the lowest-friction local path:
+
+```powershell
+npm run dev:stack
+```
+
+It will:
+
+1. Start Docker Postgres and apply `apps/indexer/schema.sql`.
+2. Write database settings to `apps/web/.env.local` and `apps/indexer/.env`.
+3. Start Anvil.
+4. Deploy `MockUSDC` and `SubChain`.
+5. Write deployed contract addresses to the frontend and indexer env files.
+6. Start the indexer in the background.
+7. Start the Next.js frontend, usually at `http://localhost:3000`.
+
+Press `Ctrl + C` in that terminal to stop the frontend, Anvil, and indexer. Postgres stays running so the database is still available next time.
+
+Useful full-stack options:
+
+```powershell
+npm run dev:stack:no-web
+powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1 -WebPort 3001
+powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1 -NoIndexer
+powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1 -KeepAnvil
+```
+
+Indexer logs are written to:
+
+```text
+.dev/indexer.log
+.dev/indexer.err.log
+```
+
+## One-Command App Start
+
+This is the easiest local demo path on Windows:
+
+```powershell
+npm run dev:local
+```
+
+The script will:
+
+1. Add `C:\Users\wxd20\.foundry\bin` to the current PowerShell `PATH` when it exists.
+2. Start Anvil at `http://127.0.0.1:8545` if it is not already running.
+3. Deploy `MockUSDC` and `SubChain`.
+4. Write the deployed addresses to `apps/web/.env.local`.
+5. Start the Next.js app, usually at `http://localhost:3000`.
+
+Press `Ctrl + C` in that terminal to stop the frontend. If the script started Anvil, it stops Anvil too.
+
+If you want the script to also fund your MetaMask account with local ETH and mUSDC, pass your wallet address:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -WalletAddress YOUR_METAMASK_ADDRESS
+```
+
+Useful options:
+
+```powershell
+npm run dev:local:no-web
+powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -WebPort 3001
+powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -KeepAnvil
+```
+
+`-NoWeb` deploys contracts and writes `apps/web/.env.local` without starting Next.js. `-KeepAnvil` leaves Anvil running after the script exits.
+
+## Local Database
+
+The easiest local database path is Docker Postgres:
+
+```powershell
+npm run db:local
+```
+
+This starts `subchain-postgres`, applies `apps/indexer/schema.sql`, and writes:
+
+- `DATABASE_URL` to `apps/web/.env.local`
+- `DATABASE_URL`, `RPC_URL`, and `START_BLOCK` to `apps/indexer/.env`
+
+Reset or stop it with:
+
+```powershell
+npm run db:local:reset
+npm run db:local:stop
+```
+
+You can also include DB setup in the app start:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -WithDb
+```
+
+The frontend has an optional Indexer feed. The local start script updates contract addresses in `.env.local` but preserves other keys such as `DATABASE_URL`.
+
+Start the indexer in another terminal when you want database-backed history:
+
+```powershell
+npm run dev:indexer
+```
+
+## Manual Start From Zero
 
 Use three terminals.
 

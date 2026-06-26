@@ -5,8 +5,8 @@ dist/
 cache/
 artifacts/
 broadcast/
-lib/
+/lib/
+contracts/lib/
 .env
 .env.local
 *.log
-
