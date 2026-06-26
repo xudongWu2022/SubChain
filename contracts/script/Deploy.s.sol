@@ -7,12 +7,7 @@ import {MockUSDC} from "../src/MockUSDC.sol";
 
 contract Deploy is Script {
     function run() external {
-        uint256 deployerKey = vm.envOr("PRIVATE_KEY", uint256(0));
-        if (deployerKey == 0) {
-            vm.startBroadcast();
-        } else {
-            vm.startBroadcast(deployerKey);
-        }
+        vm.startBroadcast();
 
         MockUSDC usdc = new MockUSDC();
         SubChain subChain = new SubChain();
@@ -25,4 +20,3 @@ contract Deploy is Script {
         console2.log("SubChain:", address(subChain));
     }
 }
-
