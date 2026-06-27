@@ -2,6 +2,8 @@
 
 SubChain is a local Web3 subscription billing demo. Merchants create recurring mUSDC plans, users approve and subscribe from MetaMask, and due subscriptions can be charged through a keeper-style flow.
 
+> **Roadmap / vision:** evolving this demo into agent-native subscription infrastructure — x402 pay-per-use plus safe, budget-bounded recurring authorization for AI agents. See **[docs/agent-native-subscription-plan.md](docs/agent-native-subscription-plan.md)**.
+
 ## What You Need
 
 - Node.js and npm
