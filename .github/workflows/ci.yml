@@ -25,3 +25,9 @@ jobs:
         run: git clone --depth 1 https://github.com/dapphub/ds-test contracts/lib/ds-test
       - name: Unified gate (preflight, protocol canary, docs gate, forge tests)
         run: node scripts/test-all.mjs
+      - name: Slither static analysis (contracts)
+        uses: crytic/slither-action@v0
+        with:
+          target: contracts
+          slither-args: --exclude-dependencies
+          fail-on: none
