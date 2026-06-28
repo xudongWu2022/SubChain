@@ -15,7 +15,6 @@ Ring 0 freezes all external inputs. Local and testnet work may proceed when prod
 ## Testnet
 
 - EVM RPC URL and chain id.
-- SVM RPC URL for x402 pay-per-use canary.
 - Funded deployer, keeper, and agent wallets.
 - Testnet USDC or mock token address.
 - Research feed plan id and price variables.

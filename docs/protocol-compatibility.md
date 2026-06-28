@@ -2,7 +2,8 @@
 
 ## x402
 
-- Use official x402 packages behind local adapters: `@x402/core`, `@x402/express`, `@x402/fetch`, `@x402/evm`, `@x402/svm`, `@x402/mcp`.
+- Use official x402 packages behind local adapters: `@x402/core`, `@x402/express`, `@x402/fetch`, `@x402/evm`, `@x402/mcp`.
+- Scope is EVM/Base only in v1. `@x402/svm` is vendored as a dependency for future Solana support, but the SVM (Solana) payment path is not yet implemented.
 - Service-agent must use real HTTP 402 semantics for protected resources.
 - `payment-identifier` is mandatory for retry/idempotency.
 - Subscription entitlement bypasses pay-per-use so subscribers are not charged twice.

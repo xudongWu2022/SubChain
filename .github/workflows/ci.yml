@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck (all workspaces)
+        run: pnpm -r run typecheck
+      - name: Agent money-path unit tests
+        run: pnpm --filter @subchain/agent run test
+      - name: Unified gate (preflight, protocol canary, docs gate, forge tests)
+        run: node scripts/test-all.mjs

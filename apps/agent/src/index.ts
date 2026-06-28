@@ -14,27 +14,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { erc20Abi, subChainAbi, zeroAddress } from "./contracts.js";
-
-type ActionProposal = {
-  action: "pay_per_use" | "subscribe" | "cancel" | "stop";
-  targetId: string;
-  expectedCost: number;
-  expectedValue: number;
-  rationale: string;
-  confidence: number;
-  requiresHitl: boolean;
-};
-
-type EconomicState = {
-  monthlyBudget: number;
-  committedRecurringSpend: number;
-  projectedUsage: number;
-  payPerUsePrice: number;
-  subscriptionPrice: number;
-  includedUnits: number;
-  lowUsageStreak: number;
-  activeSubscriptionId: string | null;
-};
+import { proposeAction, evaluatePolicy, type ActionProposal, type EconomicState } from "./decision.js";
 
 const port = Number(process.env.AGENT_PORT ?? 4022);
 const serviceUrl = process.env.SERVICE_AGENT_URL ?? "http://localhost:4021";
@@ -56,7 +36,7 @@ app.get("/state", (_request, response) => {
 
 app.post("/cycle", async (request, response) => {
   const state = { ...defaultState(), ...(request.body?.state ?? {}) } as EconomicState;
-  const proposal = proposeAction(state);
+  const proposal = proposeAction(state, { hitlThreshold, killSwitch: process.env.KILL_SWITCH === "true" });
   const policy = evaluatePolicy(state, proposal);
   const execution = policy.allowed && !proposal.requiresHitl ? await executeProposal(proposal) : { status: "not_executed" };
   const result = { cycleId: randomUUID(), state, proposal, policy, execution };
@@ -72,7 +52,7 @@ app.post("/hitl/approve", async (request, response) => {
 
 if (process.argv.includes("--once")) {
   const state = defaultState();
-  const proposal = proposeAction(state);
+  const proposal = proposeAction(state, { hitlThreshold, killSwitch: process.env.KILL_SWITCH === "true" });
   const policy = evaluatePolicy(state, proposal);
   const execution = policy.allowed && !proposal.requiresHitl ? await executeProposal(proposal) : { status: "dry_run" };
   const result = { cycleId: randomUUID(), state, proposal, policy, execution };
@@ -95,70 +75,6 @@ function defaultState(): EconomicState {
     includedUnits: Number(process.env.RESEARCH_FEED_INCLUDED_UNITS ?? 30),
     lowUsageStreak: Number(process.env.AGENT_LOW_USAGE_STREAK ?? 0),
     activeSubscriptionId: process.env.AGENT_ACTIVE_SUBSCRIPTION_ID ?? null
-  };
-}
-
-function proposeAction(state: EconomicState): ActionProposal {
-  if (process.env.KILL_SWITCH === "true") {
-    return {
-      action: "stop",
-      targetId: "kill-switch",
-      expectedCost: 0,
-      expectedValue: 0,
-      rationale: "Kill switch is active.",
-      confidence: 1,
-      requiresHitl: false
-    };
-  }
-
-  if (state.lowUsageStreak >= 2 && state.activeSubscriptionId) {
-    return {
-      action: "cancel",
-      targetId: state.activeSubscriptionId,
-      expectedCost: 0,
-      expectedValue: state.payPerUsePrice * state.projectedUsage,
-      rationale: "Two low-usage periods make pay-per-use preferable.",
-      confidence: 0.82,
-      requiresHitl: false
-    };
-  }
-
-  const payPerUseCost = state.projectedUsage * state.payPerUsePrice;
-  const subscriptionValue = Math.max(0, payPerUseCost - state.subscriptionPrice);
-  const subscribe = state.projectedUsage > state.includedUnits || payPerUseCost > state.subscriptionPrice;
-  const action = subscribe ? "subscribe" : "pay_per_use";
-  const expectedCost = subscribe ? state.subscriptionPrice : payPerUseCost;
-
-  return {
-    action,
-    targetId: "research-feed",
-    expectedCost,
-    expectedValue: subscribe ? subscriptionValue : payPerUseCost,
-    rationale: subscribe
-      ? `Projected ${state.projectedUsage} calls costs less through subscription.`
-      : `Projected ${state.projectedUsage} calls is cheaper as pay-per-use.`,
-    confidence: 0.86,
-    requiresHitl: expectedCost >= hitlThreshold
-  };
-}
-
-function evaluatePolicy(state: EconomicState, proposal: ActionProposal) {
-  const projectedSpend = state.committedRecurringSpend + proposal.expectedCost;
-  const violations = [];
-  if (projectedSpend > state.monthlyBudget) {
-    violations.push("monthly_budget_exceeded");
-  }
-  if (proposal.action === "subscribe" && state.activeSubscriptionId) {
-    violations.push("duplicate_subscription");
-  }
-  if (proposal.requiresHitl) {
-    violations.push("hitl_required");
-  }
-
-  return {
-    allowed: violations.length === 0,
-    violations,
-    projectedSpend
   };
 }
 
