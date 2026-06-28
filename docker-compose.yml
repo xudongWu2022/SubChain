@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-55432}:5432"
     volumes:
       - subchain-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -16,5 +16,117 @@ services:
       timeout: 5s
       retries: 20
 
+  indexer:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @subchain/indexer run build && pnpm --filter @subchain/indexer run dev"
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/subchain
+      RPC_URL: ${DOCKER_RPC_URL:-http://host.docker.internal:8545}
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  service-agent:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @subchain/service-agent run dev"
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/subchain
+      RPC_URL: ${DOCKER_RPC_URL:-http://host.docker.internal:8545}
+      SERVICE_AGENT_PORT: 4021
+    ports:
+      - "4021:4021"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4021/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  agent:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @subchain/agent run dev"
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/subchain
+      SERVICE_AGENT_URL: http://service-agent:4021
+      RPC_URL: ${DOCKER_RPC_URL:-http://host.docker.internal:8545}
+      AGENT_PORT: 4022
+    ports:
+      - "4022:4022"
+    volumes:
+      - .:/app
+    depends_on:
+      service-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4022/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @subchain/web run dev"
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/subchain
+      NEXT_PUBLIC_AGENT_URL: http://localhost:4022
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.116.1
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./ops/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8444}:443"
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:-localhost}
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+      - service-agent
+      - agent
+    restart: unless-stopped
+
 volumes:
   subchain-postgres-data:
+  caddy-data:
+  caddy-config:

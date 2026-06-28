@@ -1,0 +1,17 @@
+{
+  auto_https off
+}
+
+:80 {
+  handle_path /service/* {
+    reverse_proxy service-agent:4021
+  }
+
+  handle_path /agent/* {
+    reverse_proxy agent:4022
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}

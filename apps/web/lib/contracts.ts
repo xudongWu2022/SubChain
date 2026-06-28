@@ -3,109 +3,31 @@ import type { Address } from "viem";
 export const subChainAddress = (process.env.NEXT_PUBLIC_SUBCHAIN_ADDRESS ??
   "0x0000000000000000000000000000000000000000") as Address;
 
+export const subscriptionAllowanceAddress = (process.env.NEXT_PUBLIC_SUBSCRIPTION_ALLOWANCE_ADDRESS ??
+  "0x0000000000000000000000000000000000000000") as Address;
+
 export const mockUsdcAddress = (process.env.NEXT_PUBLIC_USDC_ADDRESS ??
   "0x0000000000000000000000000000000000000000") as Address;
 
 export const subChainAbi = [
-  {
-    type: "function",
-    name: "planCount",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256" }]
-  },
-  {
-    type: "function",
-    name: "subscriptionCount",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256" }]
-  },
-  {
-    type: "function",
-    name: "invoiceCount",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256" }]
-  },
-  {
-    type: "function",
-    name: "plans",
-    stateMutability: "view",
-    inputs: [{ name: "", type: "uint256" }],
-    outputs: [
-      { name: "merchant", type: "address" },
-      { name: "token", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "interval", type: "uint256" },
-      { name: "gracePeriod", type: "uint256" },
-      { name: "metadataURI", type: "string" },
-      { name: "active", type: "bool" }
-    ]
-  },
-  {
-    type: "function",
-    name: "subscriptions",
-    stateMutability: "view",
-    inputs: [{ name: "", type: "uint256" }],
-    outputs: [
-      { name: "planId", type: "uint256" },
-      { name: "subscriber", type: "address" },
-      { name: "startedAt", type: "uint256" },
-      { name: "currentPeriodStart", type: "uint256" },
-      { name: "nextChargeAt", type: "uint256" },
-      { name: "canceled", type: "bool" }
-    ]
-  },
-  {
-    type: "function",
-    name: "invoices",
-    stateMutability: "view",
-    inputs: [{ name: "", type: "uint256" }],
-    outputs: [
-      { name: "subscriptionId", type: "uint256" },
-      { name: "planId", type: "uint256" },
-      { name: "subscriber", type: "address" },
-      { name: "merchant", type: "address" },
-      { name: "token", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "dueAt", type: "uint256" },
-      { name: "paidAt", type: "uint256" },
-      { name: "status", type: "uint8" }
-    ]
-  },
-  {
-    type: "function",
-    name: "merchantBalances",
-    stateMutability: "view",
-    inputs: [
-      { name: "merchant", type: "address" },
-      { name: "token", type: "address" }
-    ],
-    outputs: [{ name: "amount", type: "uint256" }]
-  },
+  { type: "function", name: "planCount", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "subscriptionCount", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "invoiceCount", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   {
     type: "function",
     name: "createPlan",
     stateMutability: "nonpayable",
     inputs: [
       { name: "token", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "interval", type: "uint256" },
-      { name: "gracePeriod", type: "uint256" },
+      { name: "price", type: "uint128" },
+      { name: "period", type: "uint64" },
+      { name: "includedUnits", type: "uint32" },
+      { name: "gracePeriod", type: "uint32" },
+      { name: "serviceId", type: "bytes32" },
+      { name: "serviceMetadataHash", type: "bytes32" },
       { name: "metadataURI", type: "string" }
     ],
     outputs: [{ name: "planId", type: "uint256" }]
-  },
-  {
-    type: "function",
-    name: "setPlanActive",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "planId", type: "uint256" },
-      { name: "active", type: "bool" }
-    ],
-    outputs: []
   },
   {
     type: "function",
@@ -130,34 +52,34 @@ export const subChainAbi = [
   },
   {
     type: "function",
-    name: "refundInvoice",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "invoiceId", type: "uint256" }],
-    outputs: []
+    name: "hasEntitlement",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "serviceId", type: "bytes32" }
+    ],
+    outputs: [{ name: "", type: "bool" }]
   },
   {
     type: "function",
-    name: "withdraw",
-    stateMutability: "nonpayable",
+    name: "entitlementOf",
+    stateMutability: "view",
     inputs: [
-      { name: "token", type: "address" },
-      { name: "amount", type: "uint256" }
+      { name: "owner", type: "address" },
+      { name: "serviceId", type: "bytes32" }
     ],
-    outputs: []
-  },
-  {
-    type: "event",
-    name: "InvoicePaid",
-    inputs: [
-      { indexed: true, name: "invoiceId", type: "uint256" },
-      { indexed: true, name: "subscriptionId", type: "uint256" },
-      { indexed: true, name: "planId", type: "uint256" },
-      { indexed: false, name: "subscriber", type: "address" },
-      { indexed: false, name: "merchant", type: "address" },
-      { indexed: false, name: "token", type: "address" },
-      { indexed: false, name: "amount", type: "uint256" },
-      { indexed: false, name: "paidAt", type: "uint256" },
-      { indexed: false, name: "nextChargeAt", type: "uint256" }
+    outputs: [
+      {
+        name: "entitlement",
+        type: "tuple",
+        components: [
+          { name: "subscriptionId", type: "uint256" },
+          { name: "status", type: "uint8" },
+          { name: "currentPeriodStart", type: "uint64" },
+          { name: "nextChargeAt", type: "uint64" },
+          { name: "remainingUnits", type: "uint32" }
+        ]
+      }
     ]
   }
 ] as const;

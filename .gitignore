@@ -8,5 +8,8 @@ broadcast/
 /lib/
 contracts/lib/
 .env
-.env.local
+.env.*
+!.env.*.example
 *.log
+*.tsbuildinfo
+.DS_Store
