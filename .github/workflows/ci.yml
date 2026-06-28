@@ -21,5 +21,7 @@ jobs:
         run: pnpm -r run typecheck
       - name: Agent money-path unit tests
         run: pnpm --filter @subchain/agent run test
+      - name: Vendor ds-test for Foundry (lib/ is gitignored)
+        run: git clone --depth 1 https://github.com/dapphub/ds-test contracts/lib/ds-test
       - name: Unified gate (preflight, protocol canary, docs gate, forge tests)
         run: node scripts/test-all.mjs
