@@ -160,6 +160,37 @@ marketplace / 发现 = 三环转起来后的输出,不是起点
 
 新增来源(需复核):FinOps Foundation State of FinOps(98% manage AI spend)🚩 · 31 CFR 1010.100(money transmitter 定义)· Forrester agentic governance 🚩 · Gartner Hype Cycle for Agentic AI 🚩 · Cedar <https://github.com/cedar-policy/cedar> · OPA <https://www.openpolicyagent.org/docs> · Coinbase Spend Permissions <https://github.com/coinbase/spend-permissions> · Locus(YC F25)🚩 · Mastercard Agent Pay for Machines 🚩
 
+## 10. 打法升级:安全为尖 · OSS collector 落地 · 融资现实(第三轮调研)
+
+净结论:**主打安全、用 OSS collector 落地、按"系统级账本"去融资。**
+
+### 10.1 安全是更尖的 wedge(CISO 预算 > CFO 预算)
+
+同一本账换买家:从"省钱"(FinOps / CFO / 价格敏感)→ **"检测并拦截未授权 / 被劫持的 agent 花费"**(安全事件 / CISO / 危机预算 / ACV 更高)。
+
+- **威胁真、有美元数**:prompt 注入诱导转账(Unit 42 约 500 条注入帖,有的埋进 agent memory 延迟触发)· 失控循环 11 天 **$47K** · key 泄露 LLMjacking 48h **$82K**。🚩 Visa 暗网 "AI Agent" 提及 +450%;WEF 估 2028 年 1/4 入侵由 agent 驱动。
+- **缝**:agent 安全厂商(Token / Zenity / Astrix / Oasis)只做身份 / 访问 / 数据异常,**不碰花费**;FinOps 碰花费但框成"省钱"。**"花费当安全信号"跨 rail 没人占。**
+- **同账换读法**:花费尖峰 = 失控 / LLMjacking · 越策略 merchant = 注入 · 速度突变 = key 失陷。**正中 plan 既有的 threat-model DNA(注入防护、kill switch)。**
+- **打法 both-and**:主打安全(紧迫 + 预算大),FinOps 当 land-and-expand 的 ROI 证明。同一本账,安全是更尖的那头。
+
+### 10.2 落地:免费 OSS 只读 collector(做 token 界的 OpenCost)
+
+- 一条命令(helm / pip / sidecar / MCP)接现有 provider + 网关(LiteLLM / Helicone)遥测 → Grafana dashboard。**agentless、只读、metadata-only —— read-only 当头条,把安全否决提前清掉(Wiz / Vantage 打法)。**
+- 技术:**OpenLLMetry / OTel + FOCUS token 列**,预对齐 🚩 **Linux Foundation "Tokenomics Foundation"(2026-07 成立)** 抢卡位。
+- 路径:Champion(platform / AI-eng)从 GitHub / **MCP Discord(~13k)** / CNCF 自助 → 其上 hosted control plane(跨团队分摊 + 预算 / 异常告警 + FOCUS chargeback)翻给 FinOps / finance(**FinOpsX** 场子,2500 人,AI 治理是今年主题)。
+- ⚠️ 新威胁(都 **token-only / 单 rail / FinOps 框**):🚩 OpenCost 已加 AI 成本 + MCP server · **Revenium**(运行时把 token 成本归到 workflow,架构最像)· AWS FinOps agent。**你差异化 = 跨 rail(token + outbound 支付)+ 安全框。**
+
+### 10.3 融资现实(诚实)
+
+- **可融:seed($3–8M,team + 协议 + design partner)**,但**还不是已验证的 A 类目**。A($15–30M)要:企业 logo · 实际 governed $ · agent 数 · 接进现有 book-of-record。
+- **"纯治理"是 feature 不是公司** —— 要 "more than governance":坐在企业 agent 与钱之间的 **policy + 系统级账本**(审计 + 预算 / 权限 enforcement + 对账,finance 与 security 都签字)。
+- **这是收购赛道,不是 IPO 赛道**:Stripe / Visa / Mastercard 在买 call-option;前十笔吃掉 ~78% 资本;窗口随协议被定而关。
+- **投资人一句话**:*"The system of record for agent spend — every autonomous dollar, policy-checked before it moves and reconcilable after."* 从 $ 流(支付 / billing)或安全切入,扩张到治理。
+
+> **净打法:OSS collector 落地 champion → 安全框异常检测(尖)→ 跨 rail 系统级账本(护城河)→ hosted 治理 upsell(扩张)。** SubChain 的 x402 + threat-model 资产正好喂前两步。
+
+新增来源(需复核):🚩 Unit 42 prompt-injection · $47K 失控循环 / $82K LLMjacking 案例 · 🚩 Linux Foundation Tokenomics Foundation(2026-07)· OpenLLMetry / Traceloop · OpenCost AI roadmap · Revenium · 🚩 Oasis $120M B / Astrix $45M B(安全邻接融资)· "Agentic commerce is an acquisition pipeline"
+
 ## 参考(load-bearing,均需按时点复核)
 
 - Solana Subscriptions & Allowances 🚩 <https://solana.com/news/subscriptions-and-allowances>
