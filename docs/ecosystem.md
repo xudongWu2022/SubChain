@@ -191,6 +191,14 @@ marketplace / 发现 = 三环转起来后的输出,不是起点
 
 新增来源(需复核):🚩 Unit 42 prompt-injection · $47K 失控循环 / $82K LLMjacking 案例 · 🚩 Linux Foundation Tokenomics Foundation(2026-07)· OpenLLMetry / Traceloop · OpenCost AI roadmap · Revenium · 🚩 Oasis $120M B / Astrix $45M B(安全邻接融资)· "Agentic commerce is an acquisition pipeline"
 
+## 11. 地理 / 二阶扩张:亚洲与中国(别当主战场)
+
+调研结论:**DISTINCT 但更难,不做 beachhead。**
+
+- 中国是全球最活跃 agent 支付区(🚩 Alipay AI Pay 单周 1.2 亿笔;Alipay AI Wallet 明确是 "user↔agent 控制层";Ant Trust Protocol / AMP;微信 Pay MCP)—— 但 🚩 2026-02 八部委重申**稳定币全面禁令**:x402 / USDC 境内不合法,境内 rail 只有 Alipay / 微信;治理缺口被巨头 + 监管圈住,**没有本土 agent-FinOps 创业冒头**。小团队进境内 = 本地实体 / ICP / 数据本地化 + 正面刚 Ant / Tencent。
+- **对你有用的两点**:① 你的 **"非托管 + rail 无关" 设计被巨头验证**(Alipay AI Wallet 是控制层、Ant Token Pay 明说解 "跨多国多支付系统对账"),但他们做成围墙;② **唯一中立账本的口子是跨境** —— 中国 / 亚洲企业跑 agent 花在西方 rail 上、稳定币碰不得、跨境合规难,一个**不托管、跨法域中立**的账本正好服务 "两边都不互信 / 不合法"。
+- **打法**:不进大陆直营;主 wedge 仍 **美西 + 安全框**;二阶扩张 = **跨境 + 新加坡 / SEA**(IMDA 开放框架);中国大陆当**集成 / 伙伴**(Alipay AMP、Token Pay)。
+
 ## 参考(load-bearing,均需按时点复核)
 
 - Solana Subscriptions & Allowances 🚩 <https://solana.com/news/subscriptions-and-allowances>

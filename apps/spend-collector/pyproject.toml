@@ -1,0 +1,16 @@
+[project]
+name = "spend-collector"
+version = "0.0.1"
+description = "Read-only cross-rail agent spend collector (LLM token + x402 -> one FOCUS-shaped ledger)"
+requires-python = ">=3.10"
+dependencies = []  # stdlib-only scaffold
+
+[project.optional-dependencies]
+pricing = ["tokencost"]  # real/maintained model pricing (else the tiny static price book)
+
+[project.scripts]
+spend-collector = "spend_collector.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
