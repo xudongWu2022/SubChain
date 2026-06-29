@@ -104,6 +104,62 @@ marketplace / 发现 = 三环转起来后的输出,不是起点
 - **别当 Solidity maximalist**:合约降级为"后端之一",拥抱已进 Linux Foundation / FIDO 的原语,别 fork。
 - **时钟**:Solana 已发(2026-06),Stripe 流式计费预计 ~2026 Q4。**做中立权益层的窗口就是现在。**
 
+## 9. 企业定位:Agent Spend Governance(花钱治理)
+
+§1–§8 是 builder 视角。换 buyer 视角(给部署 agent 的企业)= **Agent Spend Governance** —— **品类名就用这个**:"payments platform" 太窄(像你碰钱)、"FinOps for agents" 太窄(像 token dashboard)、**"governance" 才覆盖真痛**(授权 + 策略 + 审计 + 问责)。产品形态 = 一个 **control plane**。买家痛点硬:"我的 agent 在花钱,我没有控制和审计"是 CFO / 平台听得懂的预算项。
+
+**定位句**(每次带 "cross-rail" + "spend / governance",否则被听成 Okta/Entra 这类 agent IAM):
+
+> **EN(可直接对外)**:**Agent Spend Governance** for teams running autonomous agents in production. One control plane for everything an agent can spend — tokens, paid APIs & MCP tools, x402 services, wallets, merchant payments. **We don't move money.** We connect to the rails you already use, enforce limits & approvals outside the model, and produce a defensible, finance-ready audit trail for every spend event.
+> **CN(一句)**:管住 agent 在**任意 rail** 上花的**每一块钱** —— 只在预算与策略内、笔笔可审计;**我们不碰钱**。
+> **防混淆**:Not a wallet, not another rail, not agent IAM.
+
+三个不重叠约束:**在预算内(budgeted)· 合策略(in-policy)· 全程可审计(on the record)**。
+
+**边界(必须主动澄清,否则被问"你跟 Halliday / Okta 啥区别"):**
+
+- **不是**:钱包 / rail(x402 / Circle / 卡 负责移动)、IAM(Okta / Entra 管访问)、身份方(Skyfire 管"agent 是谁")。
+- **是**:**跨 rail 的"花钱"治理 + 审计座位** —— 决定"此刻能不能花这笔",并记录"每个 agent 在所有地方花了什么"。
+
+**买家地图(Forrester / FinOps Foundation):** Champion = platform / infra / AI engineering(先感到失控的人);Economic buyer = FinOps / finance / procurement(担预算);Veto / co-owner = security / compliance(每个 agent 要 governed identity + 全日志 + named owner)。FinOps Foundation 称 **98% 团队已在管 AI spend** —— 买家邻接成立,但那主要是 **token** 口径(已挤),你切 **outbound + 跨 rail** 没被占的部分。
+
+**入口 wedge:跨 rail 的运行时治理 + 审计(不是事后对账)。**
+**关键修正(两条独立研究都指向):买家更愿为「把 agent 关在策略内 + 告诉我到底发生了什么」掏钱,而不是「帮我事后对账」。** 现有运行时治理(Skyfire / AgentCore / Payman)**全是单 rail / 单云** —— 所以 wedge = **跨 rail 的运行时 caps + 审计**(高 salience 且没被填)。那本**横跨所有 rail 的统一 book of record 是自然产出的护城河,不是开场白**。GTM 用 observability-first(Wiz agentless 只读 → 后加 enforcement):先"看见每一笔 + 告警"、零执行风险,挣到信任再上 enforcement(限额 / 拦截 / HITL)。授权层有 AP2 / 7715 / Spend Permissions 兜底,你不重造。
+
+**对手 / 伙伴 重画:**
+
+| | 角色 | 动作 |
+|---|---|---|
+| Skyfire(KYA 身份)· rails(x402 / Circle / 卡) | 伙伴 | 连接、组合 |
+| AP2 mandate · ERC-7715 · Spend Permissions | 授权原语 | 组合,不重造 |
+| **Halliday**(链上 guardrails)· **AWS AgentCore**(Cedar + 支付)· **MS Agent 365 / Entra** | **真对手**(各做治理切片) | 赢在**中立 + 跨 rail + 审计总账** |
+| Okta / Ping / SailPoint / Entra | agent **访问** IAM | 不抢,但买家会混淆 → 语言锁死"钱" |
+
+**与 §3 护城河映射:** 可移植权益 = 被治理的授权 grant;付款信用 = 控制台的审计 / 信任信号;计费 SDK = 喂总账的数据源;**plan 里的 deterministic policy engine = 直接变成产品**(预算 / 白名单 / 额度 / 频率 / 去重 / 风控 / kill switch 都已设计过)。**这个 reframe 把 plan 最被埋没的 policy engine 推到台前。**
+
+> 与 §5 wedge 排序一致:入口仍是 bottom-up 的审计 / SDK,**不冷启动卖企业控制台**。
+
+### 深挖更新(2026-06-29,4 路调研)
+
+**品类已被命名,买家 / 定价位仍在形成。** Gartner 2026《Hype Cycle for Agentic AI》已收 "FinOps for agentic AI";驱动硬(McKinsey 仅 33% governance-ready;Gartner 估 >40% agentic 项目 2027 前因成本 / 风控被砍;有企业单月烧 $500M)。买家正从"无人负责"转向 **CFO / FinOps 强推**,但 spend 专项预算线尚未成型 —— **卖 panic / mandate,别等标准预算线**。
+
+**关键澄清:token ≠ payment。** "FinOps for AI" 今天几乎都指 **inbound token / 云成本**(Finout / Vantage / nOps,已挤);你的独占点是 **outbound 跨 rail 支付对账**(agent 往外付的钱,没人占)。但最响的痛是 token。→ **对外口径"管住 agent 的每一块钱",护城在 outbound 跨 rail 对账,token 成本作只读 feed 接进来给 CFO 一个数 —— 两类合一 = 真·没人做的跨 rail。**
+
+**真空 = 跨 rail 的治理 + 对账,但销售排序要对。** 事前 caps / mandates 好几家有,但**全是单 rail**;事后闭环对账(authorization→settlement→receipt→GL)跨 rail 也到处都缺。**卖法:先卖跨 rail 运行时治理 + 审计(buyer 为这个掏钱),那本统一对账总账是护城河 / 产出、不是开场白**(见上"入口 wedge"修正)。
+
+**Compose,别造。** 策略层用 **Cedar**(可脱离 AWS 内嵌)或 **OPA / Rego**;grant 层用 **AP2 mandate**(链下)+ **ERC-7715 / Coinbase Spend Permissions**(链上)。**真正要造的只有一件:跨异构 rail 的有状态计量 + 聚合账本 + 发出 Cedar/Rego 决策与 AP2/链上 grant 的编排层** —— 所有现成原语都不跨 rail 维护"运行中预算状态",那缺口就是产品。
+
+**GTM / 定价(有先例)。** observability-first(Wiz agentless 只读 → 后加 enforcement)。计价:**主轴 = governed spend 的 %(~2–2.5% "平台税");land 用 per-agent(只读期便宜 / 免费);inline enforcement 加 per-transaction(~$0.001/笔 like x402)**。避开 per-seat。
+
+**对手与时钟。** Catena = 协议 / SDK 无产品(可差异化);**Locus(YC F25)= 最像的初创,但今天单 rail(USDC-on-Base)**;🚩 **Mastercard Agent Pay for Machines = 最吓人(已多 rail 结算,可能加报表)**。窗口 **2–4 个季度**。
+
+**三个待定抉择(等客户发现 + 竞品实操回来再敲;附 lean):**
+1. **token + payment 一起,还是只 outbound 支付?** → lean 前者(统一口径,独特在 outbound)。
+2. **碰不碰钱?** → lean 不碰。法律支点:**31 CFR 1010.100** 把 money transmitter 定义为"**接收**一方资金 + **转移**给另一方";**只读取 / 策略 / 审计 / 对账、不接收也不转移 = 不落入该框架**(对比 Stripe 持牌 MSB、Catena 去申 bank charter)。即便不碰钱仍要 SOC2 / 数据边界:**只摄取 permissions / 限额 / 交易元数据 / merchant 身份 / trace id,绝不碰 PAN/CVV / 私钥**。
+3. **crypto-first 还是真·fiat + crypto?** → lean 一开始就能读卡 / Stripe / USDC 多 rail(哪怕只读);只 crypto = 掉进 Kite / Halliday。
+
+新增来源(需复核):FinOps Foundation State of FinOps(98% manage AI spend)🚩 · 31 CFR 1010.100(money transmitter 定义)· Forrester agentic governance 🚩 · Gartner Hype Cycle for Agentic AI 🚩 · Cedar <https://github.com/cedar-policy/cedar> · OPA <https://www.openpolicyagent.org/docs> · Coinbase Spend Permissions <https://github.com/coinbase/spend-permissions> · Locus(YC F25)🚩 · Mastercard Agent Pay for Machines 🚩
+
 ## 参考(load-bearing,均需按时点复核)
 
 - Solana Subscriptions & Allowances 🚩 <https://solana.com/news/subscriptions-and-allowances>
