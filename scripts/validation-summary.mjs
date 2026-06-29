@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from "node:fs";
 
-const ledger = "docs/validation-ledger.md";
+const ledger = "docs/ledgers/validation-ledger.md";
 if (!existsSync(ledger)) {
   console.error("Validation ledger is missing.");
   process.exit(1);

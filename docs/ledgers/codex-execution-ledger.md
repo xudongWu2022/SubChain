@@ -18,7 +18,7 @@ This file is the persistent execution ledger for the one-shot SubChain launch pl
 
 ## Resume Protocol
 
-1. Read this file and `docs/validation-ledger.md`.
+1. Read this file and `docs/ledgers/validation-ledger.md`.
 2. Run `git status --short`.
 3. Check the latest failed validation output.
 4. Continue Ring 9 when `.env.testnet` is filled, then Ring 10 when `.env.production` is filled.

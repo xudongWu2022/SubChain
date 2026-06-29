@@ -21,7 +21,7 @@ pnpm exec playwright screenshot --full-page --viewport-size=1440,1000 http://127
 pnpm exec playwright screenshot --full-page --viewport-size=390,844 http://127.0.0.1:3000 docs/evidence/web-mobile-YYYY-MM-DD.png
 ```
 
-Evidence to record in `docs/validation-ledger.md`:
+Evidence to record in `docs/ledgers/validation-ledger.md`:
 
 - Command output.
 - Local transaction hashes.

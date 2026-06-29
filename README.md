@@ -4,223 +4,97 @@ SubChain is a local Web3 subscription billing demo. Merchants create recurring m
 
 > **Roadmap / vision:** evolving this demo into agent-native subscription infrastructure — x402 pay-per-use plus safe, budget-bounded recurring authorization for AI agents. See **[docs/agent-native-subscription-plan.md](docs/agent-native-subscription-plan.md)**.
 
-## What You Need
+## Documentation
 
-- Node.js and npm
-- Foundry tools: `anvil`, `forge`, `cast`
-- Chrome with MetaMask
+Full index in **[docs/README.md](docs/README.md)** — API reference, protocol notes, threat model, launch ledgers, and runbooks.
 
-On this Windows machine, Foundry was installed here:
+## Prerequisites
 
-```powershell
-C:\Users\wxd20\.foundry\bin
-```
-
-If PowerShell cannot find `anvil`, add Foundry to the current shell:
-
-```powershell
-$env:PATH = "$env:USERPROFILE\.foundry\bin;$env:PATH"
-```
+- **Node.js 20+** — the repo pins `pnpm@11.7.0`; enable it with `corepack enable`.
+- **Foundry** — `anvil`, `forge`, `cast` (install via [foundryup](https://book.getfoundry.sh/getting-started/installation)).
+- **Docker Desktop** — only needed for the Postgres-backed indexer; the basic wallet demo runs without it.
+- **Chrome with MetaMask** — for the browser demo.
 
 ## Install
 
-```powershell
-npm install
+```bash
+corepack enable
+pnpm install
 ```
 
-If contract tests complain about Foundry libraries, install them:
+`contracts/lib` is gitignored, so vendor the Foundry test library once before running contract tests:
 
-```powershell
-npm install forge-std --workspace contracts
-cd contracts
-forge install dapphub/ds-test --no-git --shallow
-cd ..
+```bash
+cd contracts && forge install dapphub/ds-test --no-git --shallow && cd ..
 ```
 
-## One-Command Full Stack Start
+## Run the Local Demo
 
-This is the lowest-friction local path:
+The minimal wallet demo needs three terminals and no database.
 
-```powershell
-npm run dev:stack
-```
+### Terminal 1 — Anvil
 
-It will:
-
-1. Start Docker Postgres and apply `apps/indexer/schema.sql`.
-2. Write database settings to `apps/web/.env.local` and `apps/indexer/.env`.
-3. Start Anvil.
-4. Deploy `MockUSDC` and `SubChain`.
-5. Write deployed contract addresses to the frontend and indexer env files.
-6. Start the indexer in the background.
-7. Start the Next.js frontend, usually at `http://localhost:3000`.
-
-Press `Ctrl + C` in that terminal to stop the frontend, Anvil, and indexer. Postgres stays running so the database is still available next time.
-
-Useful full-stack options:
-
-```powershell
-npm run dev:stack:no-web
-powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1 -WebPort 3001
-powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1 -NoIndexer
-powershell -ExecutionPolicy Bypass -File scripts/dev-stack.ps1 -KeepAnvil
-```
-
-Indexer logs are written to:
-
-```text
-.dev/indexer.log
-.dev/indexer.err.log
-```
-
-## One-Command App Start
-
-This is the easiest local demo path on Windows:
-
-```powershell
-npm run dev:local
-```
-
-The script will:
-
-1. Add `C:\Users\wxd20\.foundry\bin` to the current PowerShell `PATH` when it exists.
-2. Start Anvil at `http://127.0.0.1:8545` if it is not already running.
-3. Deploy `MockUSDC` and `SubChain`.
-4. Write the deployed addresses to `apps/web/.env.local`.
-5. Start the Next.js app, usually at `http://localhost:3000`.
-
-Press `Ctrl + C` in that terminal to stop the frontend. If the script started Anvil, it stops Anvil too.
-
-If you want the script to also fund your MetaMask account with local ETH and mUSDC, pass your wallet address:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -WalletAddress YOUR_METAMASK_ADDRESS
-```
-
-Useful options:
-
-```powershell
-npm run dev:local:no-web
-powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -WebPort 3001
-powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -KeepAnvil
-```
-
-`-NoWeb` deploys contracts and writes `apps/web/.env.local` without starting Next.js. `-KeepAnvil` leaves Anvil running after the script exits.
-
-## Local Database
-
-The easiest local database path is Docker Postgres:
-
-```powershell
-npm run db:local
-```
-
-This starts `subchain-postgres`, applies `apps/indexer/schema.sql`, and writes:
-
-- `DATABASE_URL` to `apps/web/.env.local`
-- `DATABASE_URL`, `RPC_URL`, and `START_BLOCK` to `apps/indexer/.env`
-
-Reset or stop it with:
-
-```powershell
-npm run db:local:reset
-npm run db:local:stop
-```
-
-You can also include DB setup in the app start:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1 -WithDb
-```
-
-The frontend has an optional Indexer feed. The local start script updates contract addresses in `.env.local` but preserves other keys such as `DATABASE_URL`.
-
-Start the indexer in another terminal when you want database-backed history:
-
-```powershell
-npm run dev:indexer
-```
-
-## Manual Start From Zero
-
-Use three terminals.
-
-### Terminal 1: Start Anvil
-
-```powershell
-$env:PATH = "$env:USERPROFILE\.foundry\bin;$env:PATH"
+```bash
 anvil
 ```
 
-Keep this terminal open. The local RPC is:
+Keep it running. The local RPC is `http://127.0.0.1:8545`, chain id `31337`. Anvil wipes all state on restart, so redeploy and refund after every restart.
 
-```text
-http://127.0.0.1:8545
-Chain ID: 31337
+### Terminal 2 — Deploy contracts and write the web env
+
+```bash
+pnpm contracts:deploy:local
 ```
 
-Anvil resets all balances and contracts every time it restarts. If you already used Anvil and want the fixed demo addresses below, stop Anvil with `Ctrl + C` and start it again before deploying.
+Copy the env template and paste the **printed** addresses into it:
 
-### Terminal 2: Deploy Contracts
-
-```powershell
-$env:PATH = "$env:USERPROFILE\.foundry\bin;$env:PATH"
-npm run contracts:deploy:local
+```bash
+cp apps/web/.env.example apps/web/.env.local
 ```
-
-Expected local addresses on a fresh Anvil chain:
-
-```text
-MockUSDC: 0x5FbDB2315678afecb367f032d93F642f64180aa3
-SubChain: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
-```
-
-If Anvil was not fresh, the addresses can be different. Always trust the addresses printed by the deploy command and copy those values into `.env.local`.
-
-Write `apps/web/.env.local`:
 
 ```text
 NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
-NEXT_PUBLIC_SUBCHAIN_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
-NEXT_PUBLIC_USDC_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+NEXT_PUBLIC_SUBCHAIN_ADDRESS=<printed SubChain address>
+NEXT_PUBLIC_USDC_ADDRESS=<printed MockUSDC address>
 ```
 
-If your deploy output is different, replace `NEXT_PUBLIC_SUBCHAIN_ADDRESS` and `NEXT_PUBLIC_USDC_ADDRESS` with the printed addresses, then restart the frontend.
+If you use the allowance flow, also set `NEXT_PUBLIC_SUBSCRIPTION_ALLOWANCE_ADDRESS`. Always trust the addresses printed by the deploy command over any fixed values.
 
-### Fund Your MetaMask Account
+Fund your MetaMask account (replace `YOUR_METAMASK_ADDRESS`; the key below is Anvil's default test key):
 
-Replace `YOUR_METAMASK_ADDRESS` with the connected account.
+```bash
+cast send YOUR_METAMASK_ADDRESS --value 10ether \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url http://127.0.0.1:8545
 
-```powershell
-$env:PATH = "$env:USERPROFILE\.foundry\bin;$env:PATH"
-
-cast send YOUR_METAMASK_ADDRESS --value 10ether --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --rpc-url http://127.0.0.1:8545
-
-cast send 0x5FbDB2315678afecb367f032d93F642f64180aa3 "mint(address,uint256)" YOUR_METAMASK_ADDRESS 1000000000000 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --rpc-url http://127.0.0.1:8545
+# mint 1,000,000 mUSDC (MockUSDC uses 6 decimals)
+cast send <printed MockUSDC address> "mint(address,uint256)" YOUR_METAMASK_ADDRESS 1000000000000 \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url http://127.0.0.1:8545
 ```
 
-`1000000000000` mUSDC units equals `1,000,000 mUSDC` because `MockUSDC` uses 6 decimals.
+### Terminal 3 — Frontend
 
-Check balances:
-
-```powershell
-cast balance YOUR_METAMASK_ADDRESS --ether --rpc-url http://127.0.0.1:8545
-cast call 0x5FbDB2315678afecb367f032d93F642f64180aa3 "balanceOf(address)(uint256)" YOUR_METAMASK_ADDRESS --rpc-url http://127.0.0.1:8545
+```bash
+pnpm dev:web
 ```
 
-### Terminal 3: Start Frontend
+Open the printed URL, usually `http://localhost:3000` (Next.js falls back to `3001` if the port is busy).
 
-```powershell
-npm run dev:web
+> `pnpm dev:local:cross` prints this bring-up checklist and runs the preflight check — handy as a reminder, but it does not start Anvil or deploy for you.
+
+## Optional: Database + Indexer
+
+For database-backed history, start Postgres and apply the schema:
+
+```bash
+cp .env.local.example .env.local
+docker compose up -d postgres
+docker compose exec -T postgres psql -U postgres -d subchain < apps/indexer/schema.sql
+pnpm dev:indexer
 ```
 
-Open the printed URL, usually:
-
-```text
-http://localhost:3000
-```
-
-If port `3000` is busy, Next.js may use `3001`. Use whatever URL it prints.
+The service-agent and consumer agent (the full agent loop) start with `pnpm dev:service` and `pnpm dev:agent`. See [docs/runbooks/local-e2e.md](docs/runbooks/local-e2e.md) for the complete end-to-end flow and canaries.
 
 ## MetaMask Setup
 
@@ -234,74 +108,58 @@ Currency symbol: ETH
 Block explorer URL: leave blank
 ```
 
-Important:
-
 - The RPC URL must include `http://`.
-- If MetaMask says `Ethereum` in a transaction popup, cancel it.
-- Only confirm transactions when the network is `Localhost 8545` or chain id `31337`.
-- After switching network, hard refresh the app with `Ctrl + Shift + R`.
+- Only confirm transactions when the network is `Localhost 8545` / chain id `31337`. Cancel anything that says `Ethereum`.
+- After switching network, hard refresh with `Cmd + Shift + R`.
 
-The app shows both wallet and app chain IDs. They should both be `31337` before sending transactions.
+The app shows both wallet and app chain IDs; both should read `31337` before sending transactions.
 
 ## Demo Flow
 
-1. Connect MetaMask.
-2. Confirm the page shows `Wallet Chain ID: 31337`.
-3. Click `Create $10 plan` and confirm in MetaMask.
-4. Click `Approve 100 USDC` and confirm in MetaMask.
-5. Click `Subscribe to plan #1` and confirm in MetaMask.
+1. Connect MetaMask and confirm `Wallet Chain ID: 31337`.
+2. Click `Create $10 plan` and confirm.
+3. Click `Approve 100 USDC` and confirm.
+4. Click `Subscribe to plan #1` and confirm.
 
-Do not expect `Charge subscription #1` to work immediately after subscribing. The plan interval is 30 days, so the contract will reject an early charge with `NotDue`.
+`Charge subscription #1` will reject with `NotDue` right after subscribing — the plan interval is 30 days. To test a charge locally, advance Anvil time first:
 
-For a quick local charge test, advance Anvil time first:
-
-```powershell
+```bash
 cast rpc evm_increaseTime 2592000 --rpc-url http://127.0.0.1:8545
 cast rpc evm_mine --rpc-url http://127.0.0.1:8545
 ```
 
 Then click `Charge subscription #1`.
 
-## Stop Everything
-
-In the Anvil terminal and frontend terminal, press:
-
-```text
-Ctrl + C
-```
-
-Check no local servers remain:
-
-```powershell
-Get-NetTCPConnection -LocalPort 8545,3000,3001 -State Listen -ErrorAction SilentlyContinue
-```
-
-If there is no output, everything is stopped.
-
 ## Common Anvil Gotchas
 
-- Restarting Anvil wipes all contracts, ETH transfers, mUSDC mints, plans, subscriptions, invoices, and approvals.
-- After every Anvil restart, deploy contracts again and fund your MetaMask account again.
-- Fixed addresses only hold on a fresh Anvil chain with the default test private key.
-- If `planCount` reads fail or stays at `0` after you created a plan, check that `.env.local` matches the latest deploy output.
-- If MetaMask shows no ETH on `Localhost 8545`, the current Anvil instance probably restarted after you funded the wallet.
+- Restarting Anvil wipes all contracts, balances, mints, plans, subscriptions, invoices, and approvals.
+- After every Anvil restart, redeploy contracts and refund your MetaMask account.
+- If `planCount` stays `0` after creating a plan, check that `apps/web/.env.local` matches the latest deploy output.
+- If MetaMask shows no ETH on `Localhost 8545`, Anvil probably restarted after you funded the wallet.
 
 ## Useful Checks
 
-```powershell
-$env:PATH = "$env:USERPROFILE\.foundry\bin;$env:PATH"
-
+```bash
 cast chain-id --rpc-url http://127.0.0.1:8545
-cast call 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 "planCount()(uint256)" --rpc-url http://127.0.0.1:8545
-npm run contracts:test
-npm run typecheck --workspace apps/web
-npm run build:web
+pnpm contracts:test        # Foundry state-machine + allowance tests
+pnpm test:all              # preflight + protocol canary + docs gate + validation + forge
+pnpm docs:gate             # required docs and Ring 0-10 ledger records
+pnpm build:web
 ```
+
+## Windows
+
+The `pnpm dev:stack`, `pnpm dev:local`, and `pnpm db:local` scripts are PowerShell helpers (`scripts/*.ps1`) for Windows one-command startup. On macOS/Linux, use the manual flow above.
 
 ## Project Structure
 
 ```text
-contracts/       Solidity contracts, Foundry tests, deploy script
-apps/web/        Next.js wallet app and dashboard
-apps/indexer/    Event indexer and PostgreSQL schema
+contracts/           Solidity (SubChain, SubscriptionAllowance, MockUSDC), Foundry tests, deploy script
+apps/web/            Next.js wallet app and dashboard
+apps/indexer/        Event indexer and PostgreSQL schema
+apps/service-agent/  Research Feed service: x402, A2A, MCP
+apps/agent/          Consumer economic loop and HITL
+scripts/             Cross-platform Node tooling (.mjs) and Windows helpers (.ps1)
+docs/                Documentation (start at docs/README.md)
+ops/                 Caddy and OpenTelemetry configs
 ```
