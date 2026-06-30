@@ -1,52 +1,66 @@
 # spend-collector
 
-Read-only, cross-rail **agent spend collector** — the thinnest slice of the Agent
-Spend Governance plane (see [docs/ecosystem.md §9–§10](../../docs/ecosystem.md) and
-[docs/mvp-spend-ledger.md](../../docs/mvp-spend-ledger.md)).
+**See — and govern — every dollar your AI agents spend, across every rail.**
 
-It normalizes **LLM token cost + x402 payments** into **one FOCUS-shaped ledger**,
-queryable by agent / rail / budget. That unification is the thing the research found
-nobody ships: FinOps tools cover tokens, payment startups cover payments, none cover
-both — and none cross-rail.
+A free, read-only, cross-rail **agent spend collector**. It pulls what your agents
+spend (LLM token cost + x402 payments today; cards / Stripe / USDC next), normalizes
+it into **one [FOCUS](https://focus.finops.org/)-shaped ledger**, and flags anomalies
+— runaway loops, cost spikes, budget burn. **It never touches your money** (read-only),
+so it clears security review on day one.
 
-## Run
+> Why this exists: FinOps tools track token cost, payment startups track payments —
+> **nobody gives you one neutral book of record across all of it**, and nobody reads
+> agent spend as a *security* signal (a cost spike is also how a hijacked key or a
+> prompt-injected agent looks). That gap is the product. See
+> [docs/ecosystem.md](../../docs/ecosystem.md) and
+> [docs/threat-detection.md](../../docs/threat-detection.md).
+
+## Quick start (no dependencies, no keys)
 
 ```bash
 cd apps/spend-collector
 python3 -m spend_collector demo
 ```
 
-No dependencies — stdlib only (`sqlite3`). The `demo` ingests mock LLM + x402 events
-and prints the unified ledger, then runs an assert-based self-check.
+Runs the full loop on mock data — **ingest → one ledger → anomaly detectors → `report.html`** —
+and self-checks. Open `report.html` in a browser.
 
-## What's real vs stubbed
+## Real data (read-only)
 
-- **Real:** the FOCUS-shaped schema ([schema.py](spend_collector/schema.py)), the
-  append-only idempotent store ([store.py](spend_collector/store.py)), and the two
-  normalizers ([adapters.py](spend_collector/adapters.py)).
-- **Stubbed:** the adapters take already-fetched records. The `TODO`s mark where to
-  wire the real **read-only** pull:
-  - LLM: OpenAI `GET /v1/organization/costs` (admin key) / Anthropic `cost_report` / LiteLLM spend API.
-  - x402: facilitator `/settle` `PAYMENT-RESPONSE` receipts, or Dune `x402-analytics` / Allium x402 API.
+```bash
+export ANTHROPIC_ADMIN_KEY=sk-ant-admin01-...     # admin/usage key, read-only
+python3 -m spend_collector pull
+```
 
-## Reuse vs build
+Pulls your Anthropic cost report (per-API-key = per-agent attribution) into `spend.db`
+and runs the detectors. OpenAI / OpenRouter follow the same shape; x402 ingests from
+facilitator receipts or Dune/Allium.
 
-- **Reuse:** `tokencost` (pricing) · Dune/Allium (x402 history) · Grafana/Metabase
-  (point at the SQLite/Postgres table — no custom frontend) · FOCUS column spec (schema).
-- **Build (the product):** the two ingestion adapters + the FOCUS normalizer. That's it.
+## What's inside
 
-## Roadmap (thinnest -> real, ~4–5 days/dev to real)
+| File | Role |
+|---|---|
+| `schema.py` | FOCUS-shaped `SpendEvent` (one row shape for every rail) |
+| `store.py` | append-only, idempotent SQLite ledger + summaries |
+| `adapters.py` | normalizers: token usage / x402 settlements → ledger rows |
+| `sources.py` | live read-only pulls (Anthropic cost API) |
+| `detectors.py` | Phase-0 anomaly signals: per-agent robust z-score, budget burn-rate |
+| `report.py` | zero-dep static HTML dashboard |
 
-1. Wire real LLM cost API + x402 receipt pulls (replace mock data).
-2. Persist to Postgres/DuckDB; point Grafana at it for the "spend by agent/workflow/team" dashboard.
-3. Add the Stripe rail (Events API) for a real-money cross-rail story.
-4. Layer anomaly signals on top (spend spike / off-policy merchant / velocity break) —
-   the security framing (see ecosystem §10.1).
+## The detection ceiling (be honest)
 
-## Design notes
+Read-only **detects + alerts + keeps evidence — it cannot block a payment.** Stopping
+spend needs *inline* enforcement (LLM gateway / x402 middleware) and the unbypassable
+backstop is on-chain caps (ERC-7715 / Spend Permissions). That's the
+**detect → inline → on-chain** roadmap in [docs/threat-detection.md](../../docs/threat-detection.md).
 
-- **Read-only / no-touch-money** is the architecture, not a feature — clears the
-  security veto up front.
-- `event_id` is deterministic per source event → re-ingest is idempotent (no double-counting).
-- `x_*` columns are FOCUS extension fields carrying the agent graph (agent / session /
-  budget / merchant / receipt).
+## Roadmap
+
+1. ✅ Closed loop on mock data (ingest → ledger → detect → report).
+2. ✅ Real Anthropic cost pull (`pull`).
+3. Real x402 pull (Dune/Allium) + Stripe Events rail → true cross-rail.
+4. Grafana/Metabase on the DB; richer detectors (multi-window burn-rate, the 6
+   LLMjacking signals).
+5. Inline enforcement (gateway/middleware) — Phase 1.
+
+License: MIT.
