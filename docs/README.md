@@ -6,6 +6,7 @@ Index of project documentation. Start with the plan for the vision, the runbooks
 - [agent-native-subscription-plan.md](agent-native-subscription-plan.md) — Vision and integrated design: agent-native subscription infra (x402 pay-per-use + budget-bounded recurring authorization), 7-layer architecture, phased roadmap, and macOS end-to-end verification.
 - [ecosystem.md](ecosystem.md) — From product to ecosystem: 2026 agentic-commerce stack positioning, what's commoditizing (Solana/Stripe/x402-superfluid), the moat (portable entitlement + payment-reliability reputation), wedge ranking, and the Agent Spend Governance enterprise positioning (§9).
 - [mvp-spend-ledger.md](mvp-spend-ledger.md) — Buildable MVP spec for the read-only cross-rail spend ledger: per-rail ingestion feasibility, FOCUS-based schema, reuse-vs-build, thinnest 2-rail slice, and differentiation vs Locus.
+- [threat-detection.md](threat-detection.md) — How to turn the spend ledger into security threat detection (the §10.1 wedge): detection methods for runaway / prompt-injection / LLMjacking spend, the read-only ceiling, and the phased detect→inline→on-chain enforcement architecture, mapped onto SubChain's x402 + ERC-7715 assets.
 
 ## Reference
 - [api.md](reference/api.md) — Contract methods (`SubChain`, `SubscriptionAllowance`) and service/consumer agent HTTP endpoints.
