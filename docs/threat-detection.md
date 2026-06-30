@@ -1,6 +1,6 @@
 # Agent Spend 威胁检测 —— 怎么实现(安全 wedge ②)
 
-> 配套 **[ecosystem.md §10.1](ecosystem.md)**(安全 wedge)· **[mvp-spend-ledger.md](mvp-spend-ledger.md)**(账本)· **[apps/spend-collector](../apps/spend-collector/)**(原型)。
+> 配套 **[ecosystem.md §10.1](ecosystem.md)**(安全 wedge)· **[mvp-spend-ledger.md](mvp-spend-ledger.md)**(账本)· **[agent-spend-collector](https://github.com/ywutian/agent-spend-collector)**(实现,独立 OSS repo)。
 > 把"只读跨 rail 账本"升级成"威胁检测"。基于 2026-06 四路文献。🚩 = 知识截止(2026-01)后、需复核。
 
 ---
