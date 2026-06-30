@@ -1,0 +1,102 @@
+[
+  {
+    "model": "claude-haiku-4-5",
+    "input_tokens": 10000,
+    "output_tokens": 5000,
+    "agent_id": "research-bot",
+    "budget_id": "team-research",
+    "provider": "anthropic",
+    "event_time": "2026-06-29T01:00:00Z",
+    "request_id": "research-baseline-1"
+  },
+  {
+    "model": "claude-haiku-4-5",
+    "input_tokens": 10000,
+    "output_tokens": 5000,
+    "agent_id": "research-bot",
+    "budget_id": "team-research",
+    "provider": "anthropic",
+    "event_time": "2026-06-29T02:00:00Z",
+    "request_id": "research-baseline-2"
+  },
+  {
+    "model": "claude-haiku-4-5",
+    "input_tokens": 10000,
+    "output_tokens": 5000,
+    "agent_id": "research-bot",
+    "budget_id": "team-research",
+    "provider": "anthropic",
+    "event_time": "2026-06-29T03:00:00Z",
+    "request_id": "research-baseline-3"
+  },
+  {
+    "model": "claude-haiku-4-5",
+    "input_tokens": 10000,
+    "output_tokens": 5000,
+    "agent_id": "research-bot",
+    "budget_id": "team-research",
+    "provider": "anthropic",
+    "event_time": "2026-06-29T04:00:00Z",
+    "request_id": "research-baseline-4"
+  },
+  {
+    "model": "claude-haiku-4-5",
+    "input_tokens": 1000000,
+    "output_tokens": 500000,
+    "agent_id": "research-bot",
+    "budget_id": "team-research",
+    "provider": "anthropic",
+    "event_time": "2026-06-29T05:00:00Z",
+    "request_id": "research-runaway-loop"
+  },
+  {
+    "model": "gpt-5",
+    "input_tokens": 100000,
+    "output_tokens": 20000,
+    "agent_id": "support-bot",
+    "budget_id": "team-support",
+    "provider": "openai",
+    "event_time": "2026-06-29T01:00:00Z",
+    "request_id": "support-baseline-1"
+  },
+  {
+    "model": "gpt-5",
+    "input_tokens": 100000,
+    "output_tokens": 20000,
+    "agent_id": "support-bot",
+    "budget_id": "team-support",
+    "provider": "openai",
+    "event_time": "2026-06-29T02:00:00Z",
+    "request_id": "support-baseline-2"
+  },
+  {
+    "model": "gpt-5",
+    "input_tokens": 100000,
+    "output_tokens": 20000,
+    "agent_id": "support-bot",
+    "budget_id": "team-support",
+    "provider": "openai",
+    "event_time": "2026-06-29T03:00:00Z",
+    "request_id": "support-baseline-3"
+  },
+  {
+    "model": "gpt-5",
+    "input_tokens": 100000,
+    "output_tokens": 20000,
+    "agent_id": "support-bot",
+    "budget_id": "team-support",
+    "provider": "openai",
+    "event_time": "2026-06-29T04:00:00Z",
+    "request_id": "support-baseline-4"
+  },
+  {
+    "model": "gpt-5",
+    "input_tokens": 4000000,
+    "output_tokens": 1000000,
+    "agent_id": "new-key-bot",
+    "budget_id": "team-security",
+    "provider": "openai",
+    "event_time": "2026-06-29T06:00:00Z",
+    "request_id": "new-key-first-spend"
+  }
+]

@@ -1,14 +1,14 @@
-"""Live, read-only pulls from provider cost APIs and on-chain settlements -> SpendEvent rows.
+"""Live, read-only pulls from provider cost APIs and settlement rails.
 
-- LLM token: Anthropic Cost & Usage API (admin key). OpenAI / OpenRouter share the shape.
-- x402: USDC Transfer events into a merchant address on Base, via a public RPC (no key).
-- card: Stripe succeeded PaymentIntents via the Events API (restricted read key).
-Zero deps (stdlib urllib). Attribution works when each agent holds its own key/wallet.
+- LLM token: Anthropic Cost & Usage API (admin key).
+- Stripe: succeeded PaymentIntents via the Events API (restricted read key).
+- x402: USDC Transfer events into a merchant address on Base, via public RPC.
 """
 from __future__ import annotations
 
 import json
 import os
+import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
@@ -23,12 +23,7 @@ def env_admin_key() -> str | None:
 
 
 def fetch_anthropic_cost_report(admin_key: str, days: int = 7) -> list[dict]:
-    """Pull daily cost buckets grouped by api_key_id + model. Returns normalized
-    rows: {amount_usd, api_key_id, model, event_time}.
-
-    ponytail: parses the documented bucket->results shape defensively. Verify the
-    exact field names against the live response the first time you run it.
-    """
+    """Pull daily cost buckets grouped by api_key_id + model."""
     start = (date.today() - timedelta(days=days)).isoformat()
     url = f"{_ANTHROPIC_URL}?starting_at={start}&group_by[]=api_key_id&group_by[]=model"
     req = urllib.request.Request(url, headers={
@@ -52,9 +47,7 @@ def fetch_anthropic_cost_report(admin_key: str, days: int = 7) -> list[dict]:
 
 
 def from_llm_cost_rows(rows, key_to_agent=None, key_to_budget=None) -> list[SpendEvent]:
-    """Cost-API rows (cost already USD) -> SpendEvents. Maps api_key_id to
-    agent/budget (default: the api_key_id is the agent, budget 'default').
-    """
+    """Cost-API rows (cost already USD) -> SpendEvents."""
     key_to_agent = key_to_agent or {}
     key_to_budget = key_to_budget or {}
     out = []
@@ -75,6 +68,42 @@ def from_llm_cost_rows(rows, key_to_agent=None, key_to_budget=None) -> list[Spen
             x_receipt_ref=key,
         ))
     return out
+
+
+# --- Stripe card / PaymentIntent rail (read-only Events API) ---
+_STRIPE_EVENTS_URL = "https://api.stripe.com/v1/events"
+
+
+def env_stripe_key() -> str | None:
+    return os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
+
+
+def fetch_stripe_payment_intent_events(secret_key: str, days: int = 7, limit: int = 100) -> list[dict]:
+    """Pull successful PaymentIntent events from Stripe's read-only Events API.
+
+    Stripe Events have limited retention, so production use should poll frequently
+    and persist rows locally. Use a restricted read key when possible.
+    """
+    created_gte = int((datetime.now(tz=timezone.utc) - timedelta(days=days)).timestamp())
+    params = {
+        "type": "payment_intent.succeeded",
+        "created[gte]": str(created_gte),
+        "limit": str(min(max(limit, 1), 100)),
+    }
+    rows: list[dict] = []
+    starting_after = None
+    while True:
+        if starting_after:
+            params["starting_after"] = starting_after
+        url = f"{_STRIPE_EVENTS_URL}?{urllib.parse.urlencode(params)}"
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {secret_key}"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.load(resp)
+        batch = data.get("data", [])
+        rows.extend(batch)
+        if not data.get("has_more") or not batch:
+            return rows
+        starting_after = batch[-1]["id"]
 
 
 # --- x402 / on-chain USDC settlements (Base), read-only via public RPC ---
@@ -98,12 +127,7 @@ def _rpc(method: str, params: list, rpc_url: str) -> object:
 
 
 def decode_transfer_log(log: dict) -> dict:
-    """Decode an ERC-20 Transfer log -> {from, to, amount_raw, tx, block}.
-
-    Pure function (no network) so the non-trivial hex decoding is unit-checkable
-    offline. ERC-20 Transfer(address indexed from, address indexed to, uint256 value):
-    from/to are in indexed topics[1]/[2] (last 20 bytes), value is the data word.
-    """
+    """Decode an ERC-20 Transfer log -> {from, to, amount_raw, tx, block}."""
     topics = log["topics"]
     return {
         "from": "0x" + topics[1][-40:],
@@ -116,11 +140,7 @@ def decode_transfer_log(log: dict) -> dict:
 
 def fetch_base_usdc_transfers(pay_to: str, *, rpc_url: str = BASE_RPC, usdc: str = USDC_BASE,
                               lookback_blocks: int = 2000, decimals: int = 6) -> list[dict]:
-    """Read-only: USDC Transfer events INTO `pay_to` on Base (the x402 settlement
-    leg), returned as x402 receipt rows ready for adapters.from_x402_settlements.
-    No API key — a public RPC. ponytail: single getLogs window; page the block
-    range when you need more than `lookback_blocks` of history.
-    """
+    """Read-only: USDC Transfer events into `pay_to` on Base."""
     latest = int(_rpc("eth_blockNumber", [], rpc_url), 16)
     from_block = max(0, latest - lookback_blocks)
     pad_to = "0x" + "0" * 24 + pay_to.lower().replace("0x", "")
@@ -144,65 +164,3 @@ def fetch_base_usdc_transfers(pay_to: str, *, rpc_url: str = BASE_RPC, usdc: str
             "agent_id": d["from"], "budget_id": "default",
         })
     return rows
-
-
-# --- card / Stripe payments, read-only via the Events API ---
-_STRIPE_URL = "https://api.stripe.com/v1/events"
-
-
-def env_stripe_key() -> str | None:
-    return os.environ.get("STRIPE_API_KEY")
-
-
-def _unix_iso(ts) -> str:
-    return datetime.fromtimestamp(int(ts or 0), tz=timezone.utc).isoformat()
-
-
-def _stripe_row(event: dict) -> dict:
-    """Map a raw Stripe `payment_intent.succeeded` event -> normalized row. Pure."""
-    pi = event.get("data", {}).get("object", {})
-    meta = pi.get("metadata") or {}
-    return {
-        "id": pi.get("id") or event.get("id", ""),
-        "amount_usd": (pi.get("amount_received") or pi.get("amount") or 0) / 100.0,
-        "currency": (pi.get("currency") or "usd").upper(),
-        "agent_id": meta.get("agent_id", "unknown"),
-        "budget_id": meta.get("budget_id", "default"),
-        "merchant": pi.get("on_behalf_of") or meta.get("merchant", "stripe"),
-        "event_time": _unix_iso(event.get("created", 0)),
-    }
-
-
-def fetch_stripe_payments(api_key: str, limit: int = 100) -> list[dict]:
-    """Read-only: recent succeeded PaymentIntents via the Stripe Events API. Use a
-    restricted read key. ponytail: single page; paginate with starting_after for
-    >limit. Events retain 30 days — persist what you pull.
-    """
-    url = f"{_STRIPE_URL}?type=payment_intent.succeeded&limit={limit}"
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.load(resp)
-    return [_stripe_row(e) for e in data.get("data", [])]
-
-
-def from_stripe_payments(rows: list[dict]) -> list[SpendEvent]:
-    """Stripe payment rows -> SpendEvents (card rail; amount already in major units)."""
-    out = []
-    for r in rows:
-        out.append(SpendEvent(
-            event_id=f"stripe:{r['id']}",
-            event_time=r["event_time"],
-            rail="card",
-            provider_name="stripe",
-            service_name=r["merchant"],
-            billed_cost=r["amount_usd"],
-            billing_currency=r["currency"],
-            consumed_quantity=1,
-            pricing_unit="charge",
-            x_agent_id=r["agent_id"],
-            x_budget_id=r["budget_id"],
-            x_merchant_id=r["merchant"],
-            x_receipt_ref=r["id"],
-            charge_category="Purchase",
-        ))
-    return out

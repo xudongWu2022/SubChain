@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import json
+from datetime import datetime, timezone
 
 from .schema import SpendEvent
 
@@ -82,6 +83,63 @@ def from_x402_settlements(receipts: list[dict]) -> list[SpendEvent]:
             x_budget_id=r["budget_id"],
             x_merchant_id=r["pay_to"],
             x_receipt_ref=r["transaction"],
+            charge_category="Purchase",
+        ))
+    return out
+
+
+_STRIPE_ZERO_DECIMAL = {
+    "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf",
+    "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
+}
+
+
+def _stripe_amount(amount: int | float | None, currency: str) -> float:
+    if amount is None:
+        return 0.0
+    return float(amount) if currency.lower() in _STRIPE_ZERO_DECIMAL else float(amount) / 100
+
+
+def _stripe_time(value) -> str:
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=timezone.utc).isoformat()
+    return value or ""
+
+
+def from_stripe_events(events: list[dict]) -> list[SpendEvent]:
+    """Stripe card/payment rail. Accepts Events API rows for payment_intent.succeeded.
+
+    Attribution is best-effort: set PaymentIntent metadata keys agent_id, budget_id,
+    session_id, merchant_id, service_name/resource to get clean agent ledger joins.
+    """
+    out = []
+    for e in events:
+        if e.get("type") != "payment_intent.succeeded":
+            continue
+        pi = (e.get("data") or {}).get("object") or {}
+        meta = pi.get("metadata") or {}
+        currency = (pi.get("currency") or "usd").upper()
+        amount = pi.get("amount_received", pi.get("amount"))
+        service = (
+            meta.get("service_name") or meta.get("resource") or pi.get("description")
+            or pi.get("statement_descriptor") or "stripe_payment"
+        )
+        customer = pi.get("customer") or "unknown"
+        out.append(SpendEvent(
+            event_id=f"stripe:{e['id']}",
+            event_time=_stripe_time(e.get("created") or pi.get("created")),
+            rail="card",
+            provider_name="stripe",
+            service_name=str(service),
+            billed_cost=_stripe_amount(amount, currency),
+            billing_currency=currency,
+            consumed_quantity=1,
+            pricing_unit="payment",
+            x_agent_id=meta.get("agent_id") or meta.get("x_agent_id") or str(customer),
+            x_budget_id=meta.get("budget_id") or meta.get("x_budget_id") or "default",
+            x_session_id=meta.get("session_id") or meta.get("x_session_id") or "",
+            x_merchant_id=meta.get("merchant_id") or meta.get("x_merchant_id") or "stripe",
+            x_receipt_ref=pi.get("id") or e["id"],
             charge_category="Purchase",
         ))
     return out

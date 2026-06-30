@@ -1,0 +1,38 @@
+[
+  {
+    "transaction": "0xfeed001",
+    "amount": "0.10",
+    "asset": "USDC",
+    "network": "base",
+    "payer": "0xresearch",
+    "pay_to": "0xfeed",
+    "resource": "/feed",
+    "agent_id": "research-bot",
+    "budget_id": "team-research",
+    "event_time": "2026-06-29T01:05:00Z"
+  },
+  {
+    "transaction": "0xfeed002",
+    "amount": "0.10",
+    "asset": "USDC",
+    "network": "base",
+    "payer": "0xresearch",
+    "pay_to": "0xfeed",
+    "resource": "/feed",
+    "agent_id": "research-bot",
+    "budget_id": "team-research",
+    "event_time": "2026-06-29T02:05:00Z"
+  },
+  {
+    "transaction": "0xscrape001",
+    "amount": "3.00",
+    "asset": "USDC",
+    "network": "base",
+    "payer": "0xsupport",
+    "pay_to": "0xtool",
+    "resource": "/scrape",
+    "agent_id": "support-bot",
+    "budget_id": "team-support",
+    "event_time": "2026-06-29T03:05:00Z"
+  }
+]

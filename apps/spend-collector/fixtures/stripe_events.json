@@ -1,0 +1,44 @@
+[
+  {
+    "id": "evt_card_approved_saas",
+    "type": "payment_intent.succeeded",
+    "created": 1782699300,
+    "data": {
+      "object": {
+        "id": "pi_approved_saas",
+        "amount_received": 50,
+        "currency": "usd",
+        "description": "approved SaaS lookup",
+        "customer": "cus_support",
+        "metadata": {
+          "agent_id": "support-bot",
+          "budget_id": "team-support",
+          "merchant_id": "approved-saas",
+          "service_name": "approved SaaS lookup",
+          "session_id": "support-card-approved"
+        }
+      }
+    }
+  },
+  {
+    "id": "evt_card_unknown_scraper",
+    "type": "payment_intent.succeeded",
+    "created": 1782702900,
+    "data": {
+      "object": {
+        "id": "pi_unknown_scraper",
+        "amount_received": 420,
+        "currency": "usd",
+        "description": "unknown scraper checkout",
+        "customer": "cus_support",
+        "metadata": {
+          "agent_id": "support-bot",
+          "budget_id": "team-support",
+          "merchant_id": "unknown-scraper",
+          "service_name": "unknown scraper checkout",
+          "session_id": "support-card-unknown"
+        }
+      }
+    }
+  }
+]
