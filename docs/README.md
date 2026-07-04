@@ -8,6 +8,7 @@ Index of project documentation. Start with the plan for the vision, the runbooks
 - [mvp-spend-ledger.md](mvp-spend-ledger.md) — Buildable MVP spec for the read-only cross-rail spend ledger: per-rail ingestion feasibility, FOCUS-based schema, reuse-vs-build, thinnest 2-rail slice, and differentiation vs Locus.
 - [threat-detection.md](threat-detection.md) — How to turn the spend ledger into security threat detection (the §10.1 wedge): detection methods for runaway / prompt-injection / LLMjacking spend, the read-only ceiling, and the phased detect→inline→on-chain enforcement architecture, mapped onto SubChain's x402 + ERC-7715 assets.
 - [enterprise-readiness.md](enterprise-readiness.md) — Enterprise-grade gap assessment for the agent-spend-collector: tiered gap matrix (identity/data/HA/compliance table-stakes, then expected, then moat), strengths already in place, and a substrate-first phased roadmap. Verdict: features are done, the gap is the platform underneath.
+- [threat-mapping.md](threat-mapping.md) — Positioning + threat crosswalk that locks the open-core line: OSS = a denial-of-wallet / LLMjacking spend gateway (mapped to OWASP LLM10:2025 and the real detectors/controls), commercial = agent runtime governance (identity + MCP/tool + audit). Includes three-layer messaging, the content_guard=Layer-1 honesty note, the preflight-reservation code delta, and the commercial P0 checklist.
 
 ## Reference
 - [api.md](reference/api.md) — Contract methods (`SubChain`, `SubscriptionAllowance`) and service/consumer agent HTTP endpoints.
