@@ -2,6 +2,11 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import pg from "pg";
+import { x402Client, x402HTTPClient, type PaymentPolicy } from "@x402/core/client";
+import type { Network, PaymentRequirements, SettleResponse } from "@x402/core/types";
+import { ExactEvmScheme } from "@x402/evm/exact/client";
+import { appendPaymentIdentifierToExtensions } from "@x402/extensions/payment-identifier";
+import { wrapFetchWithPayment } from "@x402/fetch";
 import {
   createPublicClient,
   createWalletClient,
@@ -20,6 +25,8 @@ const port = Number(process.env.AGENT_PORT ?? 4022);
 const serviceUrl = process.env.SERVICE_AGENT_URL ?? "http://localhost:4021";
 const databaseUrl = process.env.DATABASE_URL;
 const hitlThreshold = Number(process.env.HITL_COST_THRESHOLD ?? 2_000_000);
+const x402Mode = process.env.X402_MODE === "facilitator" ? "facilitator" : "local";
+const x402Network = (process.env.X402_NETWORK ?? `eip155:${Number(process.env.CHAIN_ID ?? 31337)}`) as Network;
 const pool = databaseUrl ? new pg.Pool({ connectionString: databaseUrl }) : null;
 const memoryActions: Array<Record<string, unknown>> = [];
 const app = express();
@@ -84,14 +91,7 @@ async function executeProposal(proposal: ActionProposal) {
   }
 
   if (proposal.action === "pay_per_use") {
-    const paymentIdentifier = `agent-${randomUUID()}`;
-    await fetch(`${serviceUrl}/x402/settle`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ paymentIdentifier })
-    }).catch(() => null);
-
-    return { status: "settled", paymentIdentifier };
+    return executePayPerUse(proposal);
   }
 
   if (proposal.action === "subscribe") {
@@ -99,6 +99,106 @@ async function executeProposal(proposal: ActionProposal) {
   }
 
   return executeCancel(proposal);
+}
+
+async function executePayPerUse(proposal: ActionProposal) {
+  const paymentIdentifier = `agent-${randomUUID()}`;
+  if (x402Mode === "facilitator") {
+    return executeFacilitatorPayPerUse(proposal, paymentIdentifier);
+  }
+
+  const settlement = await fetch(`${serviceUrl}/x402/settle`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ paymentIdentifier })
+  })
+    .then((response) => response.json())
+    .catch((error) => ({ status: "settle_failed", error: error instanceof Error ? error.message : String(error) }));
+
+  const feedUrl = new URL("/feed", serviceUrl);
+  feedUrl.searchParams.set("paymentIdentifier", paymentIdentifier);
+  const feed = await fetch(feedUrl)
+    .then(async (response) => ({ status: response.status, body: await response.json().catch(() => null) }))
+    .catch((error) => ({ status: 0, body: { error: error instanceof Error ? error.message : String(error) } }));
+
+  return {
+    status: "settled",
+    mode: "local",
+    paymentIdentifier,
+    settlement,
+    feedStatus: feed.status,
+    traceId: readString((feed.body as Record<string, unknown> | null)?.traceId),
+    source: readString((feed.body as Record<string, unknown> | null)?.source)
+  };
+}
+
+async function executeFacilitatorPayPerUse(proposal: ActionProposal, paymentIdentifier: string) {
+  const privateKey = process.env.AGENT_PRIVATE_KEY ?? process.env.DEPLOYER_PRIVATE_KEY ?? process.env.KEEPER_PRIVATE_KEY;
+  const receivingAddress = process.env.X402_RECEIVING_ADDRESS;
+  const tokenAddress = process.env.USDC_ADDRESS;
+  const missing = [
+    !privateKey ? "AGENT_PRIVATE_KEY" : null,
+    !isLaunchAddress(receivingAddress) ? "X402_RECEIVING_ADDRESS" : null,
+    !isLaunchAddress(tokenAddress) ? "USDC_ADDRESS" : null
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    return { status: "blocked", missing };
+  }
+
+  const account = privateKeyToAccount(privateKey as Hex);
+  const expectedAmount = BigInt(process.env.RESEARCH_FEED_PAY_PER_USE_PRICE ?? String(proposal.expectedCost));
+  const client = new x402Client();
+  client
+    .register(x402Network, new ExactEvmScheme(account))
+    .registerPolicy(createPaymentPolicy(x402Network, receivingAddress as Address, tokenAddress as Address, expectedAmount))
+    .onBeforePaymentCreation(async ({ paymentRequired }) => {
+      paymentRequired.extensions ??= {};
+      appendPaymentIdentifierToExtensions(paymentRequired.extensions, paymentIdentifier);
+    });
+
+  const httpClient = new x402HTTPClient(client);
+  const fetchWithPayment = wrapFetchWithPayment(fetch, httpClient);
+  const feedUrl = new URL("/feed", serviceUrl);
+  feedUrl.searchParams.set("paymentIdentifier", paymentIdentifier);
+  feedUrl.searchParams.set("owner", account.address);
+
+  const response = await fetchWithPayment(feedUrl);
+  const result = await httpClient.processResponse(response);
+  const body = result.body as Record<string, unknown> | null;
+  const header = result.header as Partial<SettleResponse> | undefined;
+
+  return {
+    status: result.paymentStatus,
+    mode: "facilitator",
+    paymentIdentifier,
+    httpStatus: result.status,
+    traceId: readString(body?.traceId),
+    source: readString(body?.source),
+    txHash: typeof header?.transaction === "string" ? header.transaction : null,
+    network: typeof header?.network === "string" ? header.network : x402Network,
+    amount: typeof header?.amount === "string" ? header.amount : expectedAmount.toString()
+  };
+}
+
+function createPaymentPolicy(network: Network, receivingAddress: Address, tokenAddress: Address, maxAmount: bigint): PaymentPolicy {
+  return (_version: number, requirements: PaymentRequirements[]) =>
+    requirements.filter((requirement) => {
+      if (requirement.scheme !== "exact" || requirement.network !== network) {
+        return false;
+      }
+      if (requirement.payTo.toLowerCase() !== receivingAddress.toLowerCase()) {
+        return false;
+      }
+      if (requirement.asset.toLowerCase() !== tokenAddress.toLowerCase()) {
+        return false;
+      }
+      return BigInt(requirement.amount) <= maxAmount;
+    });
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value : null;
 }
 
 async function executeSubscribe(proposal: ActionProposal) {

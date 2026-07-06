@@ -13,7 +13,7 @@ const requiredCommands = [
   { name: "cast", required: true },
   { name: "docker", required: true }
 ];
-const requiredScripts = ["preflight", "launch:check-secrets", "docs:gate", "validation:summary", "test:all", "deploy:testnet", "deploy:production"];
+const requiredScripts = ["preflight", "launch:check-secrets", "docs:gate", "validation:summary", "test:all", "deploy:testnet", "deploy:production", "ring9:init", "ring9:canary"];
 const requiredProtocolDeps = ["@x402/core", "@x402/express", "@x402/fetch", "@x402/evm", "@x402/svm", "@x402/mcp", "@modelcontextprotocol/sdk"];
 
 const results = [];

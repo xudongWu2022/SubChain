@@ -70,7 +70,7 @@ export async function GET() {
         [limit]
       ),
       db.query(
-        `SELECT payment_identifier, status, amount::text, settled_at
+        `SELECT payment_identifier, status, amount::text, network, facilitator_url, tx_hash, settled_at
          FROM x402_payments
          ORDER BY created_at DESC
          LIMIT $1`,

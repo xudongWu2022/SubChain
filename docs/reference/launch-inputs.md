@@ -10,6 +10,7 @@ Ring 0 freezes all external inputs. Local and testnet work may proceed when prod
 - `SUBCHAIN_ADDRESS`, `SUBSCRIPTION_ALLOWANCE_ADDRESS`, `USDC_ADDRESS`: deployment outputs.
 - `AGENT_PRIVATE_KEY`: local Anvil key used by the consumer agent for subscription/cancel write tests.
 - `RESEARCH_FEED_PLAN_ID`, `RESEARCH_FEED_SUBSCRIPTION_PRICE`, `RESEARCH_FEED_PAY_PER_USE_PRICE`, `RESEARCH_FEED_INCLUDED_UNITS`: service economics frozen before agent execution.
+- `RESEARCH_FEED_PLAN_PERIOD_SECONDS`, `RESEARCH_FEED_GRACE_PERIOD_SECONDS`, `RESEARCH_FEED_METADATA_URI`: plan initialization inputs.
 - `HITL_SHARED_SECRET`: local approval token.
 
 ## Testnet
@@ -17,8 +18,8 @@ Ring 0 freezes all external inputs. Local and testnet work may proceed when prod
 - EVM RPC URL and chain id.
 - Funded deployer, keeper, and agent wallets.
 - Testnet USDC or mock token address.
-- Research feed plan id and price variables.
-- x402 facilitator URL and receiving addresses.
+- Research feed plan id, period, grace, metadata, and price variables.
+- `X402_MODE=facilitator`, `X402_NETWORK=eip155:84532`, x402 facilitator URL, and receiving address.
 - Public service URLs for web, service-agent, and agent.
 - Alert webhook and backup destination.
 
@@ -28,8 +29,8 @@ Ring 0 freezes all external inputs. Local and testnet work may proceed when prod
 - VPS host, user, and SSH key path.
 - Production EVM RPC and deployer/keeper/agent key custody plan.
 - Production USDC address and funded pilot wallet.
-- Research feed plan id, pay-per-use price, subscription price, included units, and pilot spend limits.
-- x402 facilitator URL and receiving addresses.
+- Research feed plan id, period, grace, metadata, pay-per-use price, subscription price, included units, and pilot spend limits.
+- `X402_MODE=facilitator`, production `X402_NETWORK`, x402 facilitator URL, and receiving address.
 - TLS email/contact, alert webhook, OpenTelemetry endpoint, backup bucket.
 - Pilot spend limits and HITL operators.
 

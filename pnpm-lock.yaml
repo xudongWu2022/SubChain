@@ -17,6 +17,18 @@ importers:
 
   apps/agent:
     dependencies:
+      '@x402/core':
+        specifier: ^2.17.0
+        version: 2.17.0
+      '@x402/evm':
+        specifier: ^2.17.0
+        version: 2.17.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@x402/extensions':
+        specifier: ^2.17.0
+        version: 2.17.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@x402/fetch':
+        specifier: ^2.17.0
+        version: 2.17.0
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -85,6 +97,9 @@ importers:
       '@x402/express':
         specifier: ^2.17.0
         version: 2.17.0(bufferutil@4.1.0)(express@5.2.1)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@x402/extensions':
+        specifier: ^2.17.0
+        version: 2.17.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@x402/fetch':
         specifier: ^2.17.0
         version: 2.17.0
@@ -8312,8 +8327,8 @@ snapshots:
   ox@0.6.7(typescript@5.9.3)(zod@3.25.76):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
       abitype: 1.0.8(typescript@5.9.3)(zod@3.25.76)

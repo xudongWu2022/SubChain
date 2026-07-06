@@ -20,6 +20,8 @@
     "dev:local:cross": "node scripts/dev-local.mjs",
     "deploy:testnet": "node scripts/deploy-network.mjs testnet",
     "deploy:production": "node scripts/deploy-network.mjs production",
+    "ring9:init": "node scripts/init-research-feed-plan.mjs testnet",
+    "ring9:canary": "node scripts/ring9-canary.mjs testnet",
     "db:local": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1",
     "db:local:reset": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1 -Reset",
     "db:local:stop": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1 -Stop",

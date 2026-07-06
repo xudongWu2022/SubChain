@@ -2,6 +2,17 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import pg from "pg";
+import { HTTPFacilitatorClient, type RoutesConfig } from "@x402/core/server";
+import type { Network, PaymentPayload, SettleResponse } from "@x402/core/types";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { paymentMiddlewareFromHTTPServer, x402HTTPResourceServer, x402ResourceServer } from "@x402/express";
+import {
+  declarePaymentIdentifierExtension,
+  extractAndValidatePaymentIdentifier,
+  extractPaymentIdentifier,
+  PAYMENT_IDENTIFIER,
+  paymentIdentifierResourceServerExtension
+} from "@x402/extensions/payment-identifier";
 import { createPublicClient, getAddress, http, isAddress, keccak256, stringToHex, type Address, type Hex } from "viem";
 import { foundry } from "viem/chains";
 import { subChainAbi, zeroAddress } from "./contracts.js";
@@ -17,20 +28,34 @@ const serviceId = (process.env.RESEARCH_FEED_SERVICE_ID as Hex | undefined) ?? k
 const payPerUsePrice = process.env.RESEARCH_FEED_PAY_PER_USE_PRICE ?? "100000";
 const subscriptionPrice = process.env.RESEARCH_FEED_SUBSCRIPTION_PRICE ?? "2000000";
 const includedUnits = Number(process.env.RESEARCH_FEED_INCLUDED_UNITS ?? 30);
+const x402Mode = process.env.X402_MODE === "facilitator" ? "facilitator" : "local";
+const x402Network = (process.env.X402_NETWORK ?? `eip155:${chainId}`) as Network;
+const x402FacilitatorUrl = process.env.X402_FACILITATOR_URL;
+const x402ReceivingAddress = process.env.X402_RECEIVING_ADDRESS;
 
 const client = createPublicClient({
   chain: { ...foundry, id: chainId },
   transport: http(rpcUrl)
 });
 const pool = databaseUrl ? new pg.Pool({ connectionString: databaseUrl }) : null;
-const memoryPayments = new Set<string>();
+type PaymentEvidence = {
+  paymentIdentifier: string;
+  status: "settled";
+  amount: string;
+  txHash: string | null;
+  network: string | null;
+  facilitatorUrl: string | null;
+  paymentResponse: unknown | null;
+};
+
+const memoryPayments = new Map<string, PaymentEvidence>();
 const memoryUsage: Array<Record<string, unknown>> = [];
 const app = express();
 
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (_request, response) => {
-  response.json({ ok: true, service: "subchain-service-agent", killSwitch, chainId });
+  response.json({ ok: true, service: "subchain-service-agent", killSwitch, chainId, x402Mode, x402Network });
 });
 
 app.get(["/.well-known/agent.json", "/.well-known/agent-card.json"], (_request, response) => {
@@ -52,13 +77,20 @@ app.get(["/.well-known/agent.json", "/.well-known/agent-card.json"], (_request, 
       }
     ],
     payments: {
-      x402: { endpoint: `${baseUrl}/feed`, price: payPerUsePrice },
+      x402: { endpoint: `${baseUrl}/feed`, price: payPerUsePrice, mode: x402Mode, network: x402Network },
       subchain: { serviceId, subscriptionPrice, includedUnits }
     }
   });
 });
 
-app.get("/feed", async (request, response) => {
+const facilitatorPaymentMiddleware = x402Mode === "facilitator" ? createFacilitatorPaymentMiddleware() : null;
+if (facilitatorPaymentMiddleware) {
+  app.use(facilitatorPaymentMiddleware);
+}
+
+app.get("/feed", handleFeed);
+
+async function handleFeed(request: express.Request, response: express.Response) {
   if (killSwitch) {
     response.status(503).json({ error: "service disabled by kill switch" });
     return;
@@ -67,35 +99,14 @@ app.get("/feed", async (request, response) => {
   const owner = parseAddress(request.query.owner);
   const paymentIdentifier = getPaymentIdentifier(request);
   const traceId = randomUUID();
-  let entitlement = false;
-  let subscriptionId = "0";
-  let remainingUnits = 0;
+  const entitlement = await resolveEntitlement(owner);
 
-  if (owner && subChainAddress !== zeroAddress) {
-    try {
-      entitlement = await client.readContract({
-        address: subChainAddress,
-        abi: subChainAbi,
-        functionName: "hasEntitlement",
-        args: [owner, serviceId]
-      });
-      if (entitlement) {
-        const result = await client.readContract({
-          address: subChainAddress,
-          abi: subChainAbi,
-          functionName: "entitlementOf",
-          args: [owner, serviceId]
-        });
-        subscriptionId = result.subscriptionId.toString();
-        remainingUnits = Number(result.remainingUnits);
-      }
-    } catch (error) {
-      console.warn("entitlement read failed", error);
+  if (!entitlement.active) {
+    if (x402Mode === "facilitator" && !facilitatorPaymentMiddleware) {
+      response.status(503).json({ error: "x402 facilitator mode is not fully configured" });
+      return;
     }
-  }
-
-  if (!entitlement) {
-    if (!paymentIdentifier || !(await hasSettledPayment(paymentIdentifier))) {
+    if (x402Mode === "local" && (!paymentIdentifier || !(await hasSettledPayment(paymentIdentifier)))) {
       response
         .status(402)
         .setHeader("Payment-Required", JSON.stringify(buildPaymentRequirements(paymentIdentifier)))
@@ -112,18 +123,18 @@ app.get("/feed", async (request, response) => {
     traceId,
     owner: owner ?? zeroAddress,
     serviceId,
-    subscriptionId,
+    subscriptionId: entitlement.subscriptionId,
     paymentIdentifier: paymentIdentifier ?? "",
     units: 1,
-    source: entitlement ? "subscription" : "x402"
+    source: entitlement.active ? "subscription" : "x402"
   });
 
   response.json({
     traceId,
     serviceId,
-    source: entitlement ? "subscription" : "x402",
-    subscriptionId,
-    remainingUnits,
+    source: entitlement.active ? "subscription" : "x402",
+    subscriptionId: entitlement.subscriptionId,
+    remainingUnits: entitlement.remainingUnits,
     artifact: {
       title: "Research Feed",
       items: [
@@ -133,9 +144,14 @@ app.get("/feed", async (request, response) => {
       ]
     }
   });
-});
+}
 
 app.post("/x402/settle", async (request, response) => {
+  if (x402Mode !== "local") {
+    response.status(404).json({ error: "local x402 settlement endpoint is disabled in facilitator mode" });
+    return;
+  }
+
   const paymentIdentifier = String(request.body?.paymentIdentifier ?? "");
   if (!paymentIdentifier) {
     response.status(400).json({ error: "paymentIdentifier is required" });
@@ -216,10 +232,11 @@ app.listen(port, () => {
 });
 
 function parseAddress(value: unknown): Address | null {
-  if (typeof value !== "string" || !isAddress(value)) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (typeof candidate !== "string" || !isAddress(candidate)) {
     return null;
   }
-  return getAddress(value);
+  return getAddress(candidate);
 }
 
 function getPaymentIdentifier(request: express.Request) {
@@ -234,42 +251,224 @@ function getPaymentIdentifier(request: express.Request) {
 function buildPaymentRequirements(paymentIdentifier: string | null) {
   return {
     scheme: "exact",
-    network: process.env.X402_NETWORK ?? "local",
+    network: x402Network,
     asset: process.env.USDC_ADDRESS ?? zeroAddress,
     payTo: process.env.X402_RECEIVING_ADDRESS ?? zeroAddress,
-    maxAmountRequired: payPerUsePrice,
+    amount: payPerUsePrice,
     resource: `${baseUrl}/feed`,
     description: "SubChain Research Feed pay-per-use access",
     mimeType: "application/json",
-        paymentIdentifier: paymentIdentifier ?? randomUUID()
+    paymentIdentifier: paymentIdentifier ?? randomUUID()
   };
 }
 
 async function settlePayment(paymentIdentifier: string) {
-  if (!pool) {
-    const duplicate = memoryPayments.has(paymentIdentifier);
-    memoryPayments.add(paymentIdentifier);
-    return { status: duplicate ? "duplicate" : "settled", paymentIdentifier };
+  const existing = await getSettledPayment(paymentIdentifier);
+  if (existing) {
+    return { status: "duplicate", paymentIdentifier };
   }
 
-  const result = await pool.query(
-    `INSERT INTO x402_payments (payment_identifier, status, amount, settled_at)
-     VALUES ($1, 'settled', $2, NOW())
-     ON CONFLICT (payment_identifier) DO NOTHING`,
-    [paymentIdentifier, payPerUsePrice]
-  );
-  return { status: result.rowCount === 0 ? "duplicate" : "settled", paymentIdentifier };
+  await recordX402Payment({
+    paymentIdentifier,
+    status: "settled",
+    amount: payPerUsePrice,
+    txHash: null,
+    network: "local",
+    facilitatorUrl: null,
+    paymentResponse: null
+  });
+
+  return { status: "settled", paymentIdentifier };
 }
 
 async function hasSettledPayment(paymentIdentifier: string) {
-  if (!pool) {
-    return memoryPayments.has(paymentIdentifier);
+  return Boolean(await getSettledPayment(paymentIdentifier));
+}
+
+async function getSettledPayment(paymentIdentifier: string): Promise<PaymentEvidence | null> {
+  const memoryPayment = memoryPayments.get(paymentIdentifier);
+  if (memoryPayment) {
+    return memoryPayment;
   }
 
-  const result = await pool.query("SELECT 1 FROM x402_payments WHERE payment_identifier = $1 AND status = 'settled'", [
-    paymentIdentifier
-  ]);
-  return (result.rowCount ?? 0) > 0;
+  if (!pool) {
+    return null;
+  }
+
+  const result = await pool.query(
+    `SELECT payment_identifier, status, amount::text, tx_hash, network, facilitator_url, payment_response
+     FROM x402_payments
+     WHERE payment_identifier = $1 AND status = 'settled'`,
+    [paymentIdentifier]
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+  return {
+    paymentIdentifier: row.payment_identifier,
+    status: "settled",
+    amount: row.amount,
+    txHash: row.tx_hash ?? null,
+    network: row.network ?? null,
+    facilitatorUrl: row.facilitator_url ?? null,
+    paymentResponse: row.payment_response ?? null
+  };
+}
+
+async function recordX402Payment(evidence: PaymentEvidence) {
+  if (!memoryPayments.has(evidence.paymentIdentifier)) {
+    memoryPayments.set(evidence.paymentIdentifier, evidence);
+  }
+
+  if (!pool) {
+    return;
+  }
+
+  await pool.query(
+    `INSERT INTO x402_payments
+      (payment_identifier, status, amount, settled_at, network, facilitator_url, tx_hash, payment_response)
+     VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
+     ON CONFLICT (payment_identifier) DO NOTHING`,
+    [
+      evidence.paymentIdentifier,
+      evidence.status,
+      evidence.amount,
+      evidence.network,
+      evidence.facilitatorUrl,
+      evidence.txHash,
+      JSON.stringify(evidence.paymentResponse)
+    ]
+  );
+}
+
+function createFacilitatorPaymentMiddleware() {
+  if (!x402FacilitatorUrl || !isLaunchAddress(x402ReceivingAddress) || !isLaunchAddress(process.env.USDC_ADDRESS)) {
+    console.warn("x402 facilitator mode is enabled but X402_FACILITATOR_URL, X402_RECEIVING_ADDRESS, or USDC_ADDRESS is missing.");
+    return null;
+  }
+  const receivingAddress = x402ReceivingAddress as string;
+  const tokenAddress = process.env.USDC_ADDRESS as string;
+
+  const routes: RoutesConfig = {
+    "GET /feed": {
+      accepts: [
+        {
+          scheme: "exact",
+          price: { amount: payPerUsePrice, asset: tokenAddress },
+          network: x402Network,
+          payTo: receivingAddress
+        }
+      ],
+      resource: `${baseUrl}/feed`,
+      description: "SubChain Research Feed pay-per-use access",
+      mimeType: "application/json",
+      extensions: {
+        [PAYMENT_IDENTIFIER]: declarePaymentIdentifierExtension(true)
+      },
+      unpaidResponseBody: () => ({
+        contentType: "application/json",
+        body: { error: "payment required", traceId: randomUUID() }
+      })
+    }
+  };
+
+  const resourceServer = new x402ResourceServer(new HTTPFacilitatorClient({ url: x402FacilitatorUrl }))
+    .register(x402Network, new ExactEvmScheme())
+    .registerExtension(paymentIdentifierResourceServerExtension)
+    .onBeforeSettle(async (context) => {
+      const { id, validation } = extractAndValidatePaymentIdentifier(context.paymentPayload as PaymentPayload);
+      if (!validation.valid) {
+        return { abort: true, reason: validation.errors?.join("; ") ?? "invalid payment identifier" };
+      }
+      if (!id) {
+        return { abort: true, reason: "payment identifier is required" };
+      }
+
+      const existing = await getSettledPayment(id);
+      if (!existing) {
+        return;
+      }
+
+      return {
+        skip: true,
+        result: {
+          success: true,
+          transaction: existing.txHash ?? "",
+          network: (existing.network ?? x402Network) as Network,
+          amount: existing.amount,
+          extra: { idempotency: "duplicate" }
+        }
+      };
+    })
+    .onAfterSettle(async (context) => {
+      const paymentIdentifier = extractPaymentIdentifier(context.paymentPayload as PaymentPayload);
+      if (!paymentIdentifier) {
+        return;
+      }
+
+      const result = context.result as SettleResponse;
+      await recordX402Payment({
+        paymentIdentifier,
+        status: "settled",
+        amount: result.amount ?? context.requirements.amount,
+        txHash: result.transaction || null,
+        network: result.network ?? context.requirements.network,
+        facilitatorUrl: x402FacilitatorUrl,
+        paymentResponse: result
+      });
+  });
+
+  const httpServer = new x402HTTPResourceServer(resourceServer, routes).onProtectedRequest(async (context) => {
+    const ownerValue = context.adapter.getQueryParam?.("owner");
+    const owner = parseAddress(ownerValue);
+    const entitlement = await resolveEntitlement(owner);
+    return entitlement.active ? { grantAccess: true } : undefined;
+  });
+
+  return paymentMiddlewareFromHTTPServer(httpServer);
+}
+
+async function resolveEntitlement(owner: Address | null) {
+  const empty = { active: false, subscriptionId: "0", remainingUnits: 0 };
+  if (!owner || subChainAddress === zeroAddress) {
+    return empty;
+  }
+
+  try {
+    const active = await client.readContract({
+      address: subChainAddress,
+      abi: subChainAbi,
+      functionName: "hasEntitlement",
+      args: [owner, serviceId]
+    });
+
+    if (!active) {
+      return empty;
+    }
+
+    const result = await client.readContract({
+      address: subChainAddress,
+      abi: subChainAbi,
+      functionName: "entitlementOf",
+      args: [owner, serviceId]
+    });
+
+    return {
+      active: true,
+      subscriptionId: result.subscriptionId.toString(),
+      remainingUnits: Number(result.remainingUnits)
+    };
+  } catch (error) {
+    console.warn("entitlement read failed", error);
+    return empty;
+  }
+}
+
+function isLaunchAddress(value: string | undefined) {
+  return Boolean(value && isAddress(value) && value.toLowerCase() !== zeroAddress.toLowerCase());
 }
 
 async function recordServiceUsage(row: Record<string, unknown>) {

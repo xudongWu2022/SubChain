@@ -75,9 +75,18 @@ CREATE TABLE IF NOT EXISTS x402_payments (
   payment_identifier TEXT PRIMARY KEY,
   status TEXT NOT NULL,
   amount NUMERIC NOT NULL DEFAULT 0,
+  network TEXT,
+  facilitator_url TEXT,
+  tx_hash TEXT,
+  payment_response JSONB,
   settled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE x402_payments ADD COLUMN IF NOT EXISTS network TEXT;
+ALTER TABLE x402_payments ADD COLUMN IF NOT EXISTS facilitator_url TEXT;
+ALTER TABLE x402_payments ADD COLUMN IF NOT EXISTS tx_hash TEXT;
+ALTER TABLE x402_payments ADD COLUMN IF NOT EXISTS payment_response JSONB;
 
 CREATE TABLE IF NOT EXISTS service_usage (
   id BIGSERIAL PRIMARY KEY,

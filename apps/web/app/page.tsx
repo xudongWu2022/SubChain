@@ -12,7 +12,7 @@ type IndexerSummary = {
   invoices: Array<{ invoice_id: string; invoice_key: string; subscription_id: string; merchant: string; subscriber: string; amount: string; status: string }>;
   serviceUsage: Array<{ trace_id: string; owner: string; service_id: string; subscription_id: string | null; payment_identifier: string; units: string; source: string; success: boolean }>;
   agentActions: Array<{ cycle_id: string; action: string; target_id: string; expected_cost: string; expected_value: string; policy_result: unknown; execution_result: unknown }>;
-  x402Payments: Array<{ payment_identifier: string; status: string; amount: string }>;
+  x402Payments: Array<{ payment_identifier: string; status: string; amount: string; network: string | null; tx_hash: string | null }>;
   error?: string;
 };
 
@@ -198,6 +198,12 @@ export default function Home() {
             <td>{short(row.trace_id)}</td><td>{row.source}</td><td>{row.units}</td><td>{short(row.payment_identifier)}</td><td>{row.success ? "Yes" : "No"}</td>
           </>
         )} headings={["Trace", "Source", "Units", "Payment", "Success"]} />
+
+        <DataSection title="x402 Payments" rows={summary?.x402Payments ?? []} render={(row) => (
+          <>
+            <td>{short(row.payment_identifier)}</td><td>{row.status}</td><td>{formatUnits(row.amount)}</td><td>{row.network ?? "-"}</td><td>{short(row.tx_hash)}</td>
+          </>
+        )} headings={["Payment", "Status", "Amount", "Network", "Tx"]} />
 
         <DataSection title="Agent Actions" rows={summary?.agentActions ?? []} render={(row) => (
           <>
