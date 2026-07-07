@@ -122,8 +122,8 @@ later and enterprise procurement will ask.
 2. README / website messaging — the three lines above.
 3. Two OSS code changes — downgrade `content_guard` to a Layer-1 signal in docs; add
    cost-semantics signals + preflight budget reservation.
-4. Commercial P0 spec — "what has to be true before we may call it agent security,"
-   not a big roadmap.
+4. Commercial P0 spec — [commercial-p0.md](commercial-p0.md): "what has to be true
+   before we may call it agent security," not a big roadmap.
 
 ## References
 
